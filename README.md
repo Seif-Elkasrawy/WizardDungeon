@@ -12,9 +12,7 @@ This is a Top-down action prototype with spells, and enemy AI.
 
 - [About](#about)  
 - [Requirements](#requirements)  
-- [Getting Started (Clone & Setup)](#getting-started-clone--setup)  
-- [Build & Run (C++ project)](#build--run-c-project)  
-- [Working with Git & Git LFS](#working-with-git--git-lfs)
+- [Getting Started (Clone & Setup)](#getting-started-clone--setup)
 
 ---
 
@@ -53,9 +51,9 @@ git lfs install
 git lfs pull
 
 # open the project in Unreal:
-# - double-click <PROJECT_NAME>.uproject
+# - double-click <WizardDungeon>.uproject
 # or from CLI:
 # on Windows
-start <PROJECT_NAME>.uproject
+start <WizardDungeon>.uproject
 # on macOS
-open <PROJECT_NAME>.uproject
+open <WizardDungeon>.uproject
