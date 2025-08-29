@@ -1,0 +1,60 @@
+# Unreal Engine ---------------------------------------------------------------
+# Ignore build products and intermediate files
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+Build/
+
+# Visual Studio, Rider
+.vs/
+*.vcxproj*
+*.sln
+*.user
+*.suo
+*.opendb
+*.VC.db
+.vscode/
+
+# Mac
+.DS_Store
+
+# Logs, caches, crash dumps
+*.log
+*.dmp
+*.cache
+*.db
+
+# UBT files
+*.xcconfig
+*.ipa
+*.apk
+
+# Editor autosave/temporary
+*.autosave
+*.backup
+
+# Unreal asset redirects
+Redirects/
+
+# Prevent accidental check-in of cooked content, packaged builds, or DDC
+Saved/Cooked/
+Saved/StagedBuilds/
+Saved/WindowsNoEditor/
+Saved/Android_ASTC/
+Saved/IOS/
+
+# Build artifacts
+*.pdb
+*.obj
+*.ilk
+
+# Ignore derived plugin binaries
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+
+# Ignore compiled plugins if you don't want them in repo
+# Plugins/YourBinaryPlugin/Binaries/
+
+# Ignore platform-specific files you don't want to track
+# Add any local generated or personal files below
