@@ -11,18 +11,17 @@ This is a Top-down action prototype with spells, and enemy AI.
 ## Table of Contents
 
 - [About](#about)  
-- [Requirements](#requirements)  
+- [Requirements](#requirements)
+- [Controls](#Controls (Keyboard Only))
 - [Getting Started (Clone & Setup)](#getting-started-clone--setup)
 
 ---
 
 ## About
 
-`<PROJECT_NAME>` is an Unreal Engine (Top-Down) prototype that demonstrates:
+`WizardDungeon` is an Unreal Engine (Top-Down) prototype that demonstrates:
 - Player spells (instant shoot, charge-throw arc, AOE), projectile logic and damage
-- Vertical beam hazard (Niagara FX + collision-based damage)
 - Enemy AI with behavior tree tasks/services
-- 3D and 2D HP UI: player HUD and per-enemy world-space HP widgets
 
 ---
 
@@ -33,6 +32,14 @@ This is a Top-down action prototype with spells, and enemy AI.
 - **Git LFS** (required for `.uasset/.umap` and large media) — https://git-lfs.github.com/  
 
 ---
+
+## Controls (Keyboard Only)
+
+- WASD for movement
+- Keypad for direction change and shooting
+- 1 to switch to the first spell (Also default setting)
+- 2 to switch to the second spell
+- E for Melee attack
 
 ## Getting Started (Clone & Setup)
 
@@ -51,9 +58,9 @@ git lfs install
 git lfs pull
 
 # open the project in Unreal:
-# - double-click <WizardDungeon>.uproject
+# - double-click <CPP_TopDown>.uproject
 # or from CLI:
 # on Windows
-start <WizardDungeon>.uproject
+start <CPP_TopDown>.uproject
 # on macOS
-open <WizardDungeon>.uproject
+open <CPP_TopDown>.uproject
