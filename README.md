@@ -12,7 +12,7 @@ This is a Top-down action prototype with spells, and enemy AI.
 
 - [About](#about)  
 - [Requirements](#requirements)
-- [Controls](#Controls (Keyboard Only))
+- [Controls](#controls-keyboard-only)
 - [Getting Started (Clone & Setup)](#getting-started-clone--setup)
 
 ---
