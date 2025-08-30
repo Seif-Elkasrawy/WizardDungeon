@@ -30,113 +30,95 @@
     {
         Super::BeginPlay();
 
-        // debug at very start of BeginPlay() (or right after Super::BeginPlay())
-        //UE_LOG(LogTemp, Log, TEXT("[%s] BeginPlay debug: HealthWidgetComponent=%s, IsRegistered=%s, WidgetClass=%s, RawWidget=%s, Location=%s"),
-        //    *GetName(),
-        //    *GetNameSafe(HealthWidgetComponent),
-        //    (HealthWidgetComponent ? (HealthWidgetComponent->IsRegistered() ? TEXT("true") : TEXT("false")) : TEXT("n/a")),
-        //    (EnemyHealthWidgetClass ? *EnemyHealthWidgetClass->GetName() : TEXT("null")),
-        //    *(GetNameSafe(HealthWidgetComponent ? HealthWidgetComponent->GetUserWidgetObject() : nullptr)),
-        //    *GetActorLocation().ToCompactString()
-        //);
-
         // --- Init the health widget (hardened & verbose) ---
         UE_LOG(LogTemp, Log, TEXT("%s::BeginPlay() - starting widget init"), *GetName());
 
+        // 1) Ensure we have a valid HealthWidgetComponent pointer - try fallbacks if not
         if (!IsValid(HealthWidgetComponent))
         {
-            UE_LOG(LogTemp, Error, TEXT("%s: HealthWidgetComponent is null or invalid!"), *GetName());
-            return;
-        }
+            UE_LOG(LogTemp, Warning, TEXT("[%s] HealthWidgetComponent pointer invalid or null. Attempting recovery..."), *GetName());
 
-        // Make sure component is registered (usually it is, but this will be defensive)
-        if (!HealthWidgetComponent->IsRegistered())
-        {
-            HealthWidgetComponent->RegisterComponent();
-            UE_LOG(LogTemp, Log, TEXT("%s: HealthWidgetComponent was not registered; RegisterComponent() called."), *GetName());
-        }
-
-        // Check the class you want to assign
-        if (EnemyHealthWidgetClass == nullptr)
-        {
-            UE_LOG(LogTemp, Warning, TEXT("%s: EnemyHealthWidgetClass is null - no widget will be created."), *GetName());
-            return;
-        }
-
-        // Log the widget class name
-        UE_LOG(LogTemp, Log, TEXT("%s: EnemyHealthWidgetClass = %s"), *GetName(), *EnemyHealthWidgetClass->GetName());
-
-        // Set the Widget class on the component but DO NOT force InitWidget() yet.
-        // Let UWidgetComponent create the widget when it's safe.
-        HealthWidgetComponent->SetWidgetClass(EnemyHealthWidgetClass);
-
-        // Try to get existing widget instance and init safely
-        UUserWidget* RawWidget = HealthWidgetComponent->GetUserWidgetObject();
-        if (!RawWidget)
-        {
-            HealthWidgetComponent->InitWidget();
-            RawWidget = HealthWidgetComponent->GetUserWidgetObject();
-        }
-
-        UE_LOG(LogTemp, Log, TEXT("[%s] Raw widget created: %s (class: %s)"),
-            *GetName(),
-            *GetNameSafe(RawWidget),
-            *GetNameSafe(RawWidget ? RawWidget->GetClass() : nullptr));
-
-        // cache raw
-        EnemyRawWidgetInstance = RawWidget;
-
-        // try typed cast
-        EnemyHPWidgetInstance = RawWidget ? Cast<UHPWidgetBase>(RawWidget) : nullptr;
-
-        if (EnemyHPWidgetInstance)
-        {
-            UE_LOG(LogTemp, Log, TEXT("[%s] EnemyHPWidgetInstance valid: %p, widget class = %s"),
-                *GetName(), EnemyHPWidgetInstance, *EnemyHPWidgetInstance->GetClass()->GetName());
-        }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("[%s] EnemyHPWidgetInstance NULL — raw widget class = %s. Fallback will be used."),
-                *GetName(), *GetNameSafe(RawWidget ? RawWidget->GetClass() : nullptr));
-        }
-
-        // Initialize displayed value using whichever we have
-        float InitFrac = (CharacterStats.MaxHP > 0.f) ? (CharacterStats.HP / CharacterStats.MaxHP) : 0.f;
-        if (EnemyHPWidgetInstance)
-        {
-            EnemyHPWidgetInstance->SetHPFraction(InitFrac);
-        }
-        else if (EnemyRawWidgetInstance)
-        {
-            // try to call Blueprint function by name as fallback
-            FName FuncName = TEXT("SetHPFraction");
-            UFunction* Func = EnemyRawWidgetInstance->FindFunction(FuncName);
-            if (Func)
+            // Fallback #1: find first widget component on the actor
+            UWidgetComponent* Found = FindComponentByClass<UWidgetComponent>();
+            if (Found)
             {
-                struct FParam { float NewFraction; };
-                FParam P{ InitFrac };
-                EnemyRawWidgetInstance->ProcessEvent(Func, &P);
+                HealthWidgetComponent = Found;
+                UE_LOG(LogTemp, Log, TEXT("[%s] Found UWidgetComponent via FindComponentByClass: %s"), *GetName(), *Found->GetName());
+            }
+            else
+            {
+                // Fallback #2: search by name (in case BP created a component named "HealthWidget")
+                TArray<UWidgetComponent*> WidgetComps;
+                GetComponents<UWidgetComponent>(WidgetComps); // fills array for you
+
+                for (UWidgetComponent* WC : WidgetComps)
+                {
+                    if (!IsValid(WC)) continue;
+                    if (WC->GetName().Contains(TEXT("HealthWidget")))
+                    {
+                        HealthWidgetComponent = WC;
+                        UE_LOG(LogTemp, Log, TEXT("[%s] Found UWidgetComponent via templated GetComponents: %s"), *GetName(), *WC->GetName());
+                        break;
+                    }
+                }
+
             }
         }
 
-        // after you try to create/cast the widget
-        UE_LOG(LogTemp, Log, TEXT("[%s] WidgetClass: %s, RawWidget: %s"),
-            *GetName(),
-            (EnemyHealthWidgetClass ? *EnemyHealthWidgetClass->GetName() : TEXT("null")),
-            *GetNameSafe(RawWidget));
-
-        if (EnemyHPWidgetInstance)
+        // If still invalid, give up gracefully (do not call into UMG)
+        if (!IsValid(HealthWidgetComponent))
         {
-            UE_LOG(LogTemp, Log, TEXT("[%s] EnemyHPWidgetInstance valid: %p, widget class = %s"),
-                *GetName(),
-                EnemyHPWidgetInstance,
-                *EnemyHPWidgetInstance->GetClass()->GetName());
+            UE_LOG(LogTemp, Error, TEXT("[%s] No HealthWidgetComponent available! Skipping widget init."), *GetName());
+            // don't return here if you still want other initialization to continue
         }
         else
         {
-            UE_LOG(LogTemp, Warning, TEXT("[%s] EnemyHPWidgetInstance is NULL! Raw widget class = %s"),
-                *GetName(),
-                *GetNameSafe(RawWidget ? RawWidget->GetClass() : nullptr));
+            // Ensure component registered
+            if (!HealthWidgetComponent->IsRegistered())
+            {
+                HealthWidgetComponent->RegisterComponent();
+                UE_LOG(LogTemp, Log, TEXT("[%s] Registered HealthWidgetComponent."), *GetName());
+            }
+
+            // Make sure we have a widget class to create
+            TSubclassOf<UUserWidget> ChosenClass = EnemyHealthWidgetClass ? EnemyHealthWidgetClass : DefaultEnemyHealthWidgetClass;
+            if (ChosenClass == nullptr)
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[%s] EnemyHealthWidgetClass and DefaultEnemyHealthWidgetClass are null; no widget will be created."), *GetName());
+            }
+            else
+            {
+                HealthWidgetComponent->SetWidgetClass(ChosenClass);
+
+                UUserWidget* RawWidget = HealthWidgetComponent->GetUserWidgetObject();
+                if (!RawWidget)
+                {
+                    // InitWidget will create the widget instance if not present.
+                    HealthWidgetComponent->InitWidget();
+                    RawWidget = HealthWidgetComponent->GetUserWidgetObject();
+                }
+
+                UE_LOG(LogTemp, Log, TEXT("[%s] Raw widget created: %s (class: %s)"),
+                    *GetName(),
+                    *GetNameSafe(RawWidget),
+                    *GetNameSafe(RawWidget ? RawWidget->GetClass() : nullptr));
+
+                EnemyRawWidgetInstance = RawWidget;
+                EnemyHPWidgetInstance = RawWidget ? Cast<UHPWidgetBase>(RawWidget) : nullptr;
+
+                if (EnemyHPWidgetInstance)
+                {
+                    float InitFrac = (CharacterStats.MaxHP > 0.f) ? (CharacterStats.HP / CharacterStats.MaxHP) : 0.f;
+                    EnemyHPWidgetInstance->SetHPFraction(InitFrac);
+                    UE_LOG(LogTemp, Log, TEXT("[%s] EnemyHPWidgetInstance initialized."), *GetName());
+                }
+                else if (EnemyRawWidgetInstance)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[%s] Raw widget exists but cast to UHPWidgetBase failed (class=%s). Will use ProcessEvent fallback."),
+                        *GetName(), *GetNameSafe(EnemyRawWidgetInstance->GetClass()));
+                    // Optional: call SetHPFraction once via ProcessEvent here if needed
+                }
+            }
         }
 
         if (!PatrolRouteActor)
@@ -236,7 +218,7 @@
         SetActorRotation(Smooth);
 
         // Face toward local player's camera (if present)
-        if (HealthWidgetComponent && HealthWidgetComponent->GetWidget() && GetWorld())
+        if (IsValid(HealthWidgetComponent) && HealthWidgetComponent->GetWidget() && GetWorld())
         {
             APlayerController* PC = GetWorld()->GetFirstPlayerController();
             if (PC && PC->PlayerCameraManager)

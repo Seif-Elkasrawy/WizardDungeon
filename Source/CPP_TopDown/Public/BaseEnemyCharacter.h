@@ -58,7 +58,11 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
 	UWidgetComponent* HealthWidgetComponent;
 
-	UPROPERTY(EditDefaultsOnly)
+	/** Optional fallback widget class to use if the instance's EnemyHealthWidgetClass is not set */
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UUserWidget> DefaultEnemyHealthWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSubclassOf<UUserWidget> EnemyHealthWidgetClass;
 
 	// runtime pointers
