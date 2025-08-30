@@ -35,11 +35,12 @@ This is a Top-down action prototype with spells, and enemy AI.
 
 ## Controls (Keyboard Only)
 
-- WASD for movement
-- Keypad for direction change and shooting
-- 1 to switch to the first spell (Also default setting)
-- 2 to switch to the second spell
-- E for Melee attack
+- **WASD** for **Movement**
+- **Keypad** for direction change and shooting
+- **1** to switch to the **First spell** (Also default setting)
+- **2** to switch to the **Second spell**
+- **E** to **Melee attack**
+- **Space-bar** to **Dodge** based on the player's forward direction.
 
 ## Getting Started (Clone & Setup)
 
