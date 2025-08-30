@@ -69,7 +69,10 @@ void ACPP_TopDownPlayerController::SetupInputComponent()
 		EnhancedInputComponent->BindAction(MeleeInput, ETriggerEvent::Triggered, this, &ACPP_TopDownPlayerController::MeleeAttack);
 		EnhancedInputComponent->BindAction(MeleeInput, ETriggerEvent::Started, this, &ACPP_TopDownPlayerController::OnPlayerStartMelee);
 		EnhancedInputComponent->BindAction(MeleeInput, ETriggerEvent::Completed, this, &ACPP_TopDownPlayerController::OnPlayerStopMelee);
-
+		// Dodge Bindings
+		//EnhancedInputComponent->BindAction(DodgeInput, ETriggerEvent::Triggered, this, &ACPP_TopDownPlayerController::Dodge);
+		EnhancedInputComponent->BindAction(DodgeInput, ETriggerEvent::Started, this, &ACPP_TopDownPlayerController::OnPlayerStartDodge);
+		EnhancedInputComponent->BindAction(DodgeInput, ETriggerEvent::Completed, this, &ACPP_TopDownPlayerController::OnPlayerStopDodge);
 	}
 	else
 	{
@@ -161,6 +164,12 @@ void ACPP_TopDownPlayerController::MeleeAttack(const FInputActionValue& value)
 	}
 }
 
+//void ACPP_TopDownPlayerController::Dodge(const FInputActionValue& value)
+//{
+//	ABasePlayerCharacter* BPlayerCharacter = Cast<ABasePlayerCharacter>(GetPawn());
+//	if (BPlayerCharacter) BPlayerCharacter->Dodge();
+//}
+
 void ACPP_TopDownPlayerController::OnPlayerStartShooting()
 {
 	ABaseMagicCharacter* character = Cast<ABaseMagicCharacter>(GetPawn());
@@ -212,5 +221,17 @@ void ACPP_TopDownPlayerController::OnPlayerStopMelee()
 {
 	ABaseMagicCharacter* character = Cast<ABaseMagicCharacter>(GetPawn());
 	if (character) character->OnStopMelee();
+}
+
+void ACPP_TopDownPlayerController::OnPlayerStartDodge()
+{
+	ABasePlayerCharacter* BPlayerCharacter = Cast<ABasePlayerCharacter>(GetPawn());
+	if (BPlayerCharacter) BPlayerCharacter->OnStartDodge();
+}
+
+void ACPP_TopDownPlayerController::OnPlayerStopDodge()
+{
+	ABasePlayerCharacter* BPlayerCharacter = Cast<ABasePlayerCharacter>(GetPawn());
+	if (BPlayerCharacter) BPlayerCharacter->OnStopDodge();
 }
 

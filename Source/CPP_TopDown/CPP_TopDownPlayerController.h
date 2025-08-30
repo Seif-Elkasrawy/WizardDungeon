@@ -40,6 +40,10 @@ protected:
 	/** Melee Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* MeleeInput;
+
+	/** Dodge Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* DodgeInput;
 	
 	/** Fire Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
@@ -87,6 +91,8 @@ protected:
 
 	void MeleeAttack(const FInputActionValue& value);
 
+	void Dodge(const FInputActionValue& value);
+
 	class ABaseMagicCharacter* PlayerCharacter;
 
 	/** Input handlers */
@@ -98,6 +104,9 @@ protected:
 
 	void OnPlayerStartMelee();
 	void OnPlayerStopMelee();
+
+	void OnPlayerStartDodge();
+	void OnPlayerStopDodge();
 
 };
 

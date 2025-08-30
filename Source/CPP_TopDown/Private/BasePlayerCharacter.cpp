@@ -11,6 +11,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
 #include "Components/SplineMeshComponent.h"
+#include "Components/CapsuleComponent.h"
 
 
 
@@ -25,15 +26,27 @@ ABasePlayerCharacter::ABasePlayerCharacter()
 	CameraBoom->SetRelativeRotation(FRotator(-60.f, 0.f, 0.f));
 	CameraBoom->bDoCollisionTest = false; // Don't want to pull camera in when it collides with level
 
+    
+    CameraBoom->bEnableCameraLag = true;
+    CameraBoom->CameraLagSpeed = 8.0f;       // higher = faster catch-up; try 6..12
+    CameraBoom->CameraLagMaxDistance = 1000.0f; // optional clamp how far it can lag
+    CameraBoom->bEnableCameraRotationLag = true;
+    CameraBoom->CameraRotationLagSpeed = 10.0f;
+
+
 	// Create a camera...
 	TopDownCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("TopDownCamera"));
 	TopDownCameraComponent->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	TopDownCameraComponent->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
-    TrajectorySpline = CreateDefaultSubobject<USplineComponent>(TEXT("TrajectorySpline"));
-    TrajectorySpline->SetupAttachment(RootComponent);
-    TrajectorySpline->SetMobility(EComponentMobility::Movable);
-
+    DissolveNiagaraComp = CreateDefaultSubobject<UNiagaraComponent>(TEXT("DissolveNiagara"));
+    if (DissolveNiagaraComp)
+    {
+        // Attach to mesh so it follows animations
+        DissolveNiagaraComp->SetupAttachment(GetMesh());
+        DissolveNiagaraComp->bAutoActivate = false;
+        DissolveNiagaraComp->SetAutoDestroy(false); // keep component, we reuse it
+    }
 }
 
 void ABasePlayerCharacter::Tick(float DeltaTime)
@@ -87,6 +100,11 @@ void ABasePlayerCharacter::BeginPlay()
 {
     Super::BeginPlay();
 
+    if (DissolveNiagaraComp && DissolveNiagaraSystem)
+    {
+        DissolveNiagaraComp->SetAsset(DissolveNiagaraSystem);
+    }
+
     // create full-screen HUD (only locally)
     if (Player_HUDClass && IsLocallyControlled())
     {
@@ -135,34 +153,10 @@ void ABasePlayerCharacter::OnStartArcCharge()
     CurrentChargeTime = 0.f;
     PendingArcVelocity = FVector::ZeroVector;
 
-    // print bChargingArc to screen    
-    //if (GEngine)
-    //{
-    //    FString Msg = FString::Printf(TEXT("OnStartArcCharge after return bChargingArc: %s"), bChargingArc ? TEXT("true") : TEXT("false"));
-    //    GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, Msg);
-    //}
-
-    //// you might set a flag or start a timer
-    //if (GEngine)
-    //{
-    //    GEngine->AddOnScreenDebugMessage(-1, 0.1f, FColor::Green, TEXT("Arc throw started!"));
-    //}
-
 }
 
 FVector ABasePlayerCharacter::ArcCharging()
 {
-    // print bChargingArc to screen    
-    //if (GEngine)
-    //{
-    //    FString Msg = FString::Printf(TEXT("OnReleaseArcThrow before return bChargingArc: %s"), bChargingArc ? TEXT("true") : TEXT("false"));
-    //    GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, Msg);
-    //}
-
-    //if (GEngine)
-    //{
-    //    GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, TEXT("Arc throw released!"));
-    //}
 
     float chargeRatio = CurrentChargeTime / MaxChargeTime;
     float desiredRange = FMath::Lerp(0.f, MaxArcRange, chargeRatio);
@@ -242,21 +236,6 @@ void ABasePlayerCharacter::UpdateArcPreview()
         DrawDebugLine(GetWorld(), P0, P1, FColor::FromHex("00E7DAFF"), false, 0.05f, 0, 4.5f);
     }
 
-    //// Clear existing spline points
-    //TrajectorySpline->ClearSplinePoints();
-
-    //// Add points to spline
-    //for (int32 i = 0; i < Result.PathData.Num(); ++i)
-    //{
-    //    FVector WorldLoc = Result.PathData[i].Location;
-    //    TrajectorySpline->AddSplineWorldPoint(WorldLoc);
-    //}
-    //TrajectorySpline->UpdateSpline();
-
-    //// Optionally, create/update spline meshes to render a tube
-    //UpdateSplineMeshesFromSpline();
-
-
     FVector LandPoint;
     if (bHit && Result.HitResult.IsValidBlockingHit())
     {
@@ -279,86 +258,6 @@ void ABasePlayerCharacter::UpdateArcPreview()
     // Save or directly update indicator actor location
     UpdateLandingIndicator(LandPoint, Result.HitResult.ImpactNormal, ExplosionRadius);
 }
-
-//void ABasePlayerCharacter::UpdateSplineMeshesFromSpline()
-//{
-//    if (!TrajectorySpline) return;
-//
-//    const int32 NumPoints = TrajectorySpline->GetNumberOfSplinePoints();
-//    const int32 NumSegments = FMath::Max(0, NumPoints - 1);
-//
-//    // Ensure we have enough spline mesh components
-//    for (int32 i = TrajectorySplineMeshes.Num(); i < NumSegments; ++i)
-//    {
-//        // Create a new spline mesh component
-//        USplineMeshComponent* S = NewObject<USplineMeshComponent>(this);
-//        if (!S) continue;
-//
-//        // Important: set mobility before registering
-//        S->SetMobility(EComponentMobility::Movable);
-//
-//        // Attach to the spline component so its local space matches the spline
-//        S->AttachToComponent(TrajectorySpline, FAttachmentTransformRules::KeepRelativeTransform);
-//
-//        // Disable collision for preview meshes (avoid blocking & warnings)
-//        S->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-//        S->SetGenerateOverlapEvents(false);
-//        S->SetVisibility(true);
-//
-//        // Set mesh/material only if provided
-//        if (SplineMesh)
-//        {
-//            S->SetStaticMesh(SplineMesh);
-//        }
-//
-//        // Register the component so it becomes part of the world
-//        S->RegisterComponent();
-//
-//        TrajectorySplineMeshes.Add(S);
-//    }
-//
-//    // Update existing segments
-//    for (int32 i = 0; i < NumSegments; ++i)
-//    {
-//        USplineMeshComponent* S = TrajectorySplineMeshes.IsValidIndex(i) ? TrajectorySplineMeshes[i] : nullptr;
-//        if (!S) continue;
-//
-//        // Get start/end pos & tangents in LOCAL space so mesh coords line up with spline's local transform
-//        FVector StartPos = TrajectorySpline->GetLocationAtSplinePoint(i, ESplineCoordinateSpace::Local);
-//        FVector StartTangent = TrajectorySpline->GetTangentAtSplinePoint(i, ESplineCoordinateSpace::Local);
-//        FVector EndPos = TrajectorySpline->GetLocationAtSplinePoint(i + 1, ESplineCoordinateSpace::Local);
-//        FVector EndTangent = TrajectorySpline->GetTangentAtSplinePoint(i + 1, ESplineCoordinateSpace::Local);
-//
-//        // Fallback tangents if points produce very small tangents (prevents degenerate geometry)
-//        if (StartTangent.IsNearlyZero())
-//        {
-//            StartTangent = (EndPos - StartPos) * 0.5f;
-//        }
-//        if (EndTangent.IsNearlyZero())
-//        {
-//            EndTangent = (EndPos - StartPos) * 0.5f;
-//        }
-//
-//        // Forward axis must match your mesh orientation.
-//        // For UE cylinder asset try Z. For a thin box aligned on X, use X.
-//        S->SetForwardAxis(ESplineMeshAxis::X);
-//
-//        // Set geometry (local space coords because S is attached to spline)
-//        S->SetStartAndEnd(StartPos, StartTangent, EndPos, EndTangent, true);
-//
-//        // Make it visible & set thickness
-//        S->SetStartScale(FVector2D(0.2f, 0.2f));
-//        S->SetEndScale(FVector2D(0.2f, 0.2f));
-//        S->SetVisibility(true);
-//    }
-//
-//    // Hide / disable unused spline meshes
-//    for (int32 i = NumSegments; i < TrajectorySplineMeshes.Num(); ++i)
-//    {
-//        if (TrajectorySplineMeshes[i])
-//            TrajectorySplineMeshes[i]->SetVisibility(false);
-//    }
-//}
 
 void ABasePlayerCharacter::UpdateLandingIndicator(const FVector& Location, const FVector& Normal, float ExplosionRadius)
 {
@@ -395,22 +294,6 @@ void ABasePlayerCharacter::UpdateLandingIndicator(const FVector& Location, const
 
 void ABasePlayerCharacter::HideLandingIndicator()
 {
-    //// Clear spline points
-    //if (TrajectorySpline)
-    //{
-    //    TrajectorySpline->ClearSplinePoints();
-    //    TrajectorySpline->UpdateSpline();
-    //}
-
-    //// Destroy spline mesh components and clear array (you can pool instead of destroy if desired)
-    //for (USplineMeshComponent* Comp : TrajectorySplineMeshes)
-    //{
-    //    if (Comp)
-    //    {
-    //        Comp->DestroyComponent();
-    //    }
-    //}
-    //TrajectorySplineMeshes.Empty();
 
 	// Hide the landing indicator actor
     if (!LandingIndicatorActor) return;
@@ -435,3 +318,285 @@ void ABasePlayerCharacter::SetAimFromDirection(const FVector& Direction3D)
         SetActorRotation(shootRotation);
     }
 }
+
+void ABasePlayerCharacter::OnStartDodge()
+{
+    Dodge();
+}
+
+void ABasePlayerCharacter::OnStopDodge()
+{
+    // not used for instant teleport; kept for completeness
+}
+
+void ABasePlayerCharacter::Dodge()
+{
+    if (!bCanDodge) return;
+
+    if (!Controller) Controller = GetController(); // optional ensure
+
+    // Prevent dodging while dead / during actions if you need
+    if (bIsDead) return;
+
+    // compute forward 2D direction (yaw only)
+    //FVector Forward = GetActorForwardVector();
+    //Forward.Z = 0.f;
+    //if (Forward.IsNearlyZero()) Forward = FVector::ForwardVector;
+    //Forward.Normalize();
+
+    //const FVector Start = GetActorLocation();
+    //const FVector Desired = Start + Forward * DodgeDistance;
+
+    //// Setup sweep shape (capsule approximating character)
+    //float SweepRadius = DodgeSweepRadius;
+    //float SweepHalfHeight = DodgeSweepHalfHeight;
+
+    //// make sure the shape somewhat aligns with the capsule component if present
+    //UCapsuleComponent* MyCapsule = FindComponentByClass<UCapsuleComponent>();
+    //if (MyCapsule)
+    //{
+    //    SweepRadius = FMath::Max(SweepRadius, MyCapsule->GetScaledCapsuleRadius());
+    //    SweepHalfHeight = FMath::Max(SweepHalfHeight, MyCapsule->GetScaledCapsuleHalfHeight());
+    //}
+
+    //FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(DodgeSweep), false, this);
+    //QueryParams.bReturnPhysicalMaterial = false;
+    //QueryParams.AddIgnoredActor(this);
+
+    //FHitResult Hit;
+    //bool bHit = GetWorld()->SweepSingleByChannel(
+    //    Hit,
+    //    Start,
+    //    Desired,
+    //    FQuat::Identity,
+    //    ECC_Visibility, // or ECC_WorldStatic; pick the channel you use for blocking geometry
+    //    FCollisionShape::MakeCapsule(SweepRadius, SweepHalfHeight),
+    //    QueryParams
+    //);
+
+    //// compute FinalLocation (use existing sweep code)
+    //FVector FinalLocation = Desired;
+    //if (bHit && Hit.bBlockingHit)
+    //{
+    //    const float SafetyOffset = 10.0f; // cm back from hit
+    //    FinalLocation = Hit.Location - Forward * SafetyOffset;
+    //}
+
+    //// store pending teleport and begin dissolve + VFX — do NOT teleport yet
+    //PendingTeleportLocation = FinalLocation;
+    bHasPendingTeleport = true;
+
+    // start dissolve material animation
+    StartDissolveOut();
+
+    // start (or restart) the Niagara dissolve effect attached to mesh
+    if (DissolveNiagaraComp)
+    {
+        if (DissolveNiagaraSystem)
+            DissolveNiagaraComp->SetAsset(DissolveNiagaraSystem);
+
+        // attach/snap (safe) to mesh and restart
+        DissolveNiagaraComp->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, NAME_None);
+        DissolveNiagaraComp->SetRelativeLocation(FVector::ZeroVector);
+        DissolveNiagaraComp->SetRelativeRotation(FRotator::ZeroRotator);
+
+        DissolveNiagaraComp->Deactivate();    // safe reset
+        DissolveNiagaraComp->ResetSystem();   // clear any particles from previous run
+        DissolveNiagaraComp->Activate(true);  // start fresh
+    }
+
+    // Give brief invulnerability
+    bIsDodgeInvulnerable = true;
+    if (DodgeInvulnerabilityTime > 0.f)
+    {
+        GetWorldTimerManager().ClearTimer(TimerHandle_EndInvuln);
+        GetWorldTimerManager().SetTimer(TimerHandle_EndInvuln, this, &ABasePlayerCharacter::EndDodgeInvuln, DodgeInvulnerabilityTime, false);
+    }
+
+    // Start cooldown
+    bCanDodge = false;
+    GetWorldTimerManager().ClearTimer(TimerHandle_DodgeCooldown);
+    GetWorldTimerManager().SetTimer(TimerHandle_DodgeCooldown, this, &ABasePlayerCharacter::ResetDodge, DodgeCooldown, false);
+}
+
+void ABasePlayerCharacter::InitDissolveMIDs()
+{
+    // if already inited, skip
+    if (DynamicMats.Num() > 0) return;
+
+    USkeletalMeshComponent* Skel = GetMesh();
+    if (!IsValid(Skel)) return;
+
+    int32 NumMats = Skel->GetNumMaterials();
+    DynamicMats.SetNum(NumMats);
+    OriginalMats.SetNum(NumMats);
+
+    for (int32 i = 0; i < NumMats; ++i)
+    {
+        UMaterialInterface* Mat = Skel->GetMaterial(i);
+        OriginalMats[i] = Mat;
+
+        if (Mat)
+        {
+            UMaterialInstanceDynamic* MID = Skel->CreateAndSetMaterialInstanceDynamic(i);
+            DynamicMats[i] = MID;
+
+            if (MID)
+            {
+                MID->SetScalarParameterValue(DissolveParameterName, 0.0f);
+            }
+        }
+    }
+}
+
+void ABasePlayerCharacter::StartDissolveOut()
+{
+    InitDissolveMIDs();
+    if (DynamicMats.Num() == 0) return;
+
+    // start timer
+    DissolveElapsed = 0.f;
+    bDissolvingOut = true;
+
+    GetWorldTimerManager().ClearTimer(TimerHandle_DissolveTick);
+    // tick frequency 60hz (approx); you can use lower rate if you prefer
+    GetWorldTimerManager().SetTimer(TimerHandle_DissolveTick, this, &ABasePlayerCharacter::UpdateDissolveTick, 1.0f / 60.0f, true);
+}
+
+void ABasePlayerCharacter::StartResolve()
+{
+    // assume MIDs already created by StartDissolveOut; if not, init
+    InitDissolveMIDs();
+
+    DissolveElapsed = 0.f;
+    bDissolvingOut = false;
+
+    GetWorldTimerManager().ClearTimer(TimerHandle_DissolveTick);
+   // GetWorldTimerManager().SetTimer(TimerHandle_DissolveTick, this, &ABasePlayerCharacter::UpdateDissolveTick, 1.0f / 60.0f, true);
+}
+
+void ABasePlayerCharacter::UpdateDissolveTick()
+{
+    // delta per tick
+    float Delta = 1.0f / 60.0f;
+    DissolveElapsed += Delta;
+
+    float Alpha;
+    if (bDissolvingOut)
+    {
+        if (DissolveDuration <= 0.f) Alpha = 1.f;
+        else Alpha = FMath::Clamp(DissolveElapsed / DissolveDuration, 0.f, 1.f);
+    }
+    else
+    {
+        if (ResolveDuration <= 0.f) Alpha = 0.f;
+        else Alpha = 1.f - FMath::Clamp(DissolveElapsed / ResolveDuration, 0.f, 1.f);
+    }
+
+    for (UMaterialInstanceDynamic* MID : DynamicMats)
+    {
+        if (MID) MID->SetScalarParameterValue(DissolveParameterName, Alpha);
+    }
+
+    // finish
+    if ((bDissolvingOut && DissolveElapsed >= DissolveDuration) ||
+        (!bDissolvingOut && DissolveElapsed >= ResolveDuration))
+    {
+        GetWorldTimerManager().ClearTimer(TimerHandle_DissolveTick);
+
+        if (bDissolvingOut)
+        {
+            // teleport now (we were fully invisible)
+            if (bHasPendingTeleport)
+            {
+                PerformTeleportNow();
+                bHasPendingTeleport = false;
+            }
+
+            // start resolve (material 1->0)
+            StartResolve();
+
+        }
+        else
+        {
+            // finished resolve: cleanup Niagara (stop and reset)
+            if (DissolveNiagaraComp)
+            {
+                // ResetSystem + Deactivate ensures no leftover particles and stops looping systems
+                DissolveNiagaraComp->Deactivate();
+                DissolveNiagaraComp->ResetSystem();
+            }
+
+            // finished fully — make sure invulnerability is ended if not already
+            // (we already set a timer for invuln, but you can clear or adjust it here if desired)
+        }
+    }
+
+}
+
+void ABasePlayerCharacter::OnDissolveNiagaraFinished(UNiagaraComponent* FinishedComponent)
+{
+}
+
+void ABasePlayerCharacter::PerformTeleportNow()
+{
+    if (!bHasPendingTeleport) return;
+
+    FVector Forward = GetActorForwardVector();
+    Forward.Z = 0.f;
+    if (Forward.IsNearlyZero()) Forward = FVector::ForwardVector;
+    Forward.Normalize();
+
+    // recompute safe final location (optional) — this reuses the capsule size logic
+    FVector Start = GetActorLocation();
+    PendingTeleportLocation = Start + Forward * DodgeDistance;
+    FVector RecomputedFinal = PendingTeleportLocation;
+
+    // a quick sweep to be safe (you can factor this into a helper as discussed earlier)
+    UCapsuleComponent* MyCapsule = FindComponentByClass<UCapsuleComponent>();
+    float SweepRadius = DodgeSweepRadius;
+    float SweepHalfHeight = DodgeSweepHalfHeight;
+    if (MyCapsule)
+    {
+        SweepRadius = FMath::Max(SweepRadius, MyCapsule->GetScaledCapsuleRadius());
+        SweepHalfHeight = FMath::Max(SweepHalfHeight, MyCapsule->GetScaledCapsuleHalfHeight());
+    }
+
+    FHitResult Hit;
+    bool bHit = GetWorld()->SweepSingleByChannel(
+        Hit,
+        Start,
+        PendingTeleportLocation,
+        FQuat::Identity,
+        ECC_WorldStatic,
+        FCollisionShape::MakeCapsule(SweepRadius, SweepHalfHeight),
+        FCollisionQueryParams(SCENE_QUERY_STAT(DodgeSweep), false, this));
+
+    if (bHit && Hit.bBlockingHit)
+    {
+        const float SafetyOffset = 10.0f;
+        FVector Dir = (PendingTeleportLocation - Start).GetSafeNormal();
+        RecomputedFinal = Hit.Location - Dir * SafetyOffset;
+    }
+
+    // perform move with sweep so engine can resolve collisions
+    FHitResult MoveHit;
+    bool bMoved = SetActorLocation(RecomputedFinal, true /*bSweep*/, &MoveHit, ETeleportType::TeleportPhysics);
+
+    if (!bMoved)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[%s] PerformTeleportNow: final SetActorLocation failed, staying put."), *GetName());
+    }
+}
+
+
+void ABasePlayerCharacter::ResetDodge()
+{
+    bCanDodge = true;
+}
+
+void ABasePlayerCharacter::EndDodgeInvuln()
+{
+    bIsDodgeInvulnerable = false;
+}
+

@@ -7,6 +7,8 @@
 #include "BaseMagicCharacter.h"
 #include "Player_HUD.h"
 #include "HPWidgetBase.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
 #include "BasePlayerCharacter.generated.h"
 
 
@@ -79,15 +81,88 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ArcThrow")
 	FVector PendingArcVelocity = FVector::ZeroVector;
 
-	UPROPERTY(VisibleAnywhere, Category = "ArcPreview")
-	USplineComponent* TrajectorySpline;
+	// dissolve
+	UPROPERTY(EditAnywhere, Category = "Teleport|Dissolve")
+	FName DissolveParameterName = "DissolveAmount";
 
-	UPROPERTY(EditAnywhere, Category = "ArcPreview")
-	UStaticMesh* SplineMesh;
+	UPROPERTY(EditAnywhere, Category = "Teleport|Dissolve")
+	float DissolveDuration = 0.22f;
 
-	// optionally keep spline mesh components if you want thick mesh segments
-	UPROPERTY()
-	TArray<class USplineMeshComponent*> TrajectorySplineMeshes;
+	UPROPERTY(EditAnywhere, Category = "Teleport|Dissolve")
+	float ResolveDuration = 0.2f;
+
+	// Runtime
+	TArray<UMaterialInstanceDynamic*> DynamicMats;
+	TArray<UMaterialInterface*> OriginalMats;
+	FTimerHandle TimerHandle_DissolveTick;
+	float DissolveElapsed = 0.f;
+	bool bDissolvingOut = false; // true = dissolving (hide); false = resolving (show)
+
+
+	// Teleport / Dodge settings
+	UPROPERTY(EditAnywhere, Category = "Dodge")
+	float DodgeDistance = 800.0f;                     // how far to teleport (cm)
+
+	UPROPERTY(EditAnywhere, Category = "Dodge")
+	float DodgeCooldown = 1.0f;                       // seconds between dodges
+
+	UPROPERTY(EditAnywhere, Category = "Dodge")
+	float DodgeInvulnerabilityTime = 0.2f;            // brief invuln during/after dodge (optional)
+
+	UPROPERTY(EditAnywhere, Category = "Dodge")
+	float DodgeSweepRadius = 34.0f;                   // capsule radius for sweep (cm)
+
+	UPROPERTY(EditAnywhere, Category = "Dodge")
+	float DodgeSweepHalfHeight = 88.0f;               // capsule half-height for sweep (cm)
+
+	//// Optional effects
+	//UPROPERTY(EditAnywhere, Category = "Dodge|FX")
+	//UNiagaraSystem* DodgeFX = nullptr;
+	// members
+// Niagara component (optional: designer can assign the system asset in BP)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Teleport|Dissolve", meta = (AllowPrivateAccess = "true"))
+	UNiagaraComponent* DissolveNiagaraComp = nullptr;
+
+	// if you prefer to assign a Niagara asset instead of baking it to the comp:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Teleport|Dissolve")
+	UNiagaraSystem* DissolveNiagaraSystem = nullptr;
+
+	// teleport bookkeeping
+	FVector PendingTeleportLocation;
+	bool bHasPendingTeleport = false;
+
+	// callback from Niagara finished (if you use it)
+	UFUNCTION()
+	void OnDissolveNiagaraFinished(UNiagaraComponent* FinishedComponent);
+
+	// helper that actually performs teleport when we are fully dissolved
+	void PerformTeleportNow();
+
+	// runtime state
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Dodge")
+	bool bCanDodge = true;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Dodge")
+	bool bIsDodgeInvulnerable = false;
+
+	FTimerHandle TimerHandle_DodgeCooldown;
+	FTimerHandle TimerHandle_EndInvuln;
+
+	void InitDissolveMIDs();
+	void StartDissolveOut();   // begin dissolve (0 -> 1)
+	void StartResolve();       // begin resolve (1 -> 0)
+	void UpdateDissolveTick(); // called by timer
+
+
+	//UPROPERTY(VisibleAnywhere, Category = "ArcPreview")
+	//USplineComponent* TrajectorySpline;
+
+	//UPROPERTY(EditAnywhere, Category = "ArcPreview")
+	//UStaticMesh* SplineMesh;
+
+	//// optionally keep spline mesh components if you want thick mesh segments
+	//UPROPERTY()
+	//TArray<class USplineMeshComponent*> TrajectorySplineMeshes;
 
 
 	// indicator blueprint class to set in editor
@@ -103,6 +178,13 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Combat|Arc")
 	TSubclassOf<class AAOESpell> AOESpellClass;
 
+	// Functions
+	UFUNCTION()
+	void ResetDodge();
+
+	UFUNCTION()
+	void EndDodgeInvuln();
+
 public:
 
 	void OnStartArcCharge();
@@ -112,5 +194,14 @@ public:
 	void UpdateLandingIndicator(const FVector& Location, const FVector& Normal = FVector::ZeroVector, float ExplosionRadius = 0);
 	void HideLandingIndicator();
 	void SetAimFromDirection(const FVector& Direction3D);
+
+	UFUNCTION()
+	void Dodge();
+
+	UFUNCTION()
+	void OnStartDodge();
+
+	UFUNCTION()
+	void OnStopDodge();
 	
 };
