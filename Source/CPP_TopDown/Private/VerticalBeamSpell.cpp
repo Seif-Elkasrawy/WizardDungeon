@@ -158,11 +158,11 @@ void AVerticalBeamSpell::StartDamagePhase()
         if (IsValid(A) && A != GetInstigator())
         {
             OverlappingActors.Add(A);
-            if (GEngine)
-            {
-                GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow,
-                    FString::Printf(TEXT("Initial overlap: %s"), *GetNameSafe(A)));
-            }
+            //if (GEngine)
+            //{
+            //    GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow,
+            //        FString::Printf(TEXT("Initial overlap: %s"), *GetNameSafe(A)));
+            //}
         }
     }
 

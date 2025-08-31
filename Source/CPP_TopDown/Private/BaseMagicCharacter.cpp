@@ -372,20 +372,6 @@ void ABaseMagicCharacter::MeleeAttack()
             AActor* Other = Hit.GetActor();
             if (Other && Other != this)
             {
-                // OPTIONAL: Print to screen as well:
-                if (GEngine)
-                {
-                    GEngine->AddOnScreenDebugMessage(
-                        -1,
-                        5.5f,
-                        FColor::Red,
-                        FString::Printf(
-                            TEXT("Melee hit %s for %.1f damage"),
-                            *Other->GetName(),
-                            CharacterStats.MeleeDamage
-                        )
-                    );
-                }
 
                 // Apply damage
                 UGameplayStatics::ApplyDamage(

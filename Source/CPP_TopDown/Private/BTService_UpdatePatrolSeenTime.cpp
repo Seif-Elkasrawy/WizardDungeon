@@ -45,9 +45,10 @@ void UBTService_UpdatePatrolSeenTime::TickNode(UBehaviorTreeComponent& OwnerComp
 
     if (State == uint8(EEnemyStates::Attacking) && ElapsedSince >= EnemyController->SightConfig->GetMaxAge())
     {
-        if (GEngine)
-            GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red,
-                TEXT(">>> Stimulus aged out: switching to Passive"));
+		//Debug message
+        //if (GEngine)
+        //    GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red,
+        //        TEXT(">>> Stimulus aged out: switching to Passive"));
 
         // Lost sight—maybe go back to Passive  
         OwnerComp.GetBlackboardComponent()->SetValueAsEnum(

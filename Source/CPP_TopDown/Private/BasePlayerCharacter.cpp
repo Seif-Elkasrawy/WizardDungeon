@@ -338,50 +338,6 @@ void ABasePlayerCharacter::Dodge()
     // Prevent dodging while dead / during actions if you need
     if (bIsDead) return;
 
-    // compute forward 2D direction (yaw only)
-    //FVector Forward = GetActorForwardVector();
-    //Forward.Z = 0.f;
-    //if (Forward.IsNearlyZero()) Forward = FVector::ForwardVector;
-    //Forward.Normalize();
-
-    //const FVector Start = GetActorLocation();
-    //const FVector Desired = Start + Forward * DodgeDistance;
-
-    //// Setup sweep shape (capsule approximating character)
-    //float SweepRadius = DodgeSweepRadius;
-    //float SweepHalfHeight = DodgeSweepHalfHeight;
-
-    //// make sure the shape somewhat aligns with the capsule component if present
-    //UCapsuleComponent* MyCapsule = FindComponentByClass<UCapsuleComponent>();
-    //if (MyCapsule)
-    //{
-    //    SweepRadius = FMath::Max(SweepRadius, MyCapsule->GetScaledCapsuleRadius());
-    //    SweepHalfHeight = FMath::Max(SweepHalfHeight, MyCapsule->GetScaledCapsuleHalfHeight());
-    //}
-
-    //FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(DodgeSweep), false, this);
-    //QueryParams.bReturnPhysicalMaterial = false;
-    //QueryParams.AddIgnoredActor(this);
-
-    //FHitResult Hit;
-    //bool bHit = GetWorld()->SweepSingleByChannel(
-    //    Hit,
-    //    Start,
-    //    Desired,
-    //    FQuat::Identity,
-    //    ECC_Visibility, // or ECC_WorldStatic; pick the channel you use for blocking geometry
-    //    FCollisionShape::MakeCapsule(SweepRadius, SweepHalfHeight),
-    //    QueryParams
-    //);
-
-    //// compute FinalLocation (use existing sweep code)
-    //FVector FinalLocation = Desired;
-    //if (bHit && Hit.bBlockingHit)
-    //{
-    //    const float SafetyOffset = 10.0f; // cm back from hit
-    //    FinalLocation = Hit.Location - Forward * SafetyOffset;
-    //}
-
     //// store pending teleport and begin dissolve + VFX — do NOT teleport yet
     //PendingTeleportLocation = FinalLocation;
     bHasPendingTeleport = true;
@@ -443,7 +399,7 @@ void ABasePlayerCharacter::InitDissolveMIDs()
 
             if (MID)
             {
-                MID->SetScalarParameterValue(DissolveParameterName, 0.0f);
+                MID->SetScalarParameterValue(DissolveParameterName, DissolveValueMin);
             }
         }
     }
@@ -461,18 +417,6 @@ void ABasePlayerCharacter::StartDissolveOut()
     GetWorldTimerManager().ClearTimer(TimerHandle_DissolveTick);
     // tick frequency 60hz (approx); you can use lower rate if you prefer
     GetWorldTimerManager().SetTimer(TimerHandle_DissolveTick, this, &ABasePlayerCharacter::UpdateDissolveTick, 1.0f / 60.0f, true);
-}
-
-void ABasePlayerCharacter::StartResolve()
-{
-    // assume MIDs already created by StartDissolveOut; if not, init
-    InitDissolveMIDs();
-
-    DissolveElapsed = 0.f;
-    bDissolvingOut = false;
-
-    GetWorldTimerManager().ClearTimer(TimerHandle_DissolveTick);
-   // GetWorldTimerManager().SetTimer(TimerHandle_DissolveTick, this, &ABasePlayerCharacter::UpdateDissolveTick, 1.0f / 60.0f, true);
 }
 
 void ABasePlayerCharacter::UpdateDissolveTick()
@@ -493,42 +437,63 @@ void ABasePlayerCharacter::UpdateDissolveTick()
         else Alpha = 1.f - FMath::Clamp(DissolveElapsed / ResolveDuration, 0.f, 1.f);
     }
 
+    // map to your parameter range
+    const float MappedValue = FMath::Lerp(DissolveValueMin, DissolveValueMax, Alpha);
+
     for (UMaterialInstanceDynamic* MID : DynamicMats)
     {
-        if (MID) MID->SetScalarParameterValue(DissolveParameterName, Alpha);
+        if (MID) MID->SetScalarParameterValue(DissolveParameterName, MappedValue);
     }
 
     // finish
-    if ((bDissolvingOut && DissolveElapsed >= DissolveDuration) ||
-        (!bDissolvingOut && DissolveElapsed >= ResolveDuration))
+    if (bDissolvingOut)
     {
-        GetWorldTimerManager().ClearTimer(TimerHandle_DissolveTick);
-
-        if (bDissolvingOut)
+        // finished dissolving out (fully "gone")
+        if (DissolveElapsed >= DissolveDuration)
         {
-            // teleport now (we were fully invisible)
+            // Teleport now (we were fully dissolves)
             if (bHasPendingTeleport)
             {
                 PerformTeleportNow();
                 bHasPendingTeleport = false;
             }
 
-            // start resolve (material 1->0)
-            StartResolve();
+            // SWITCH to resolve phase without restarting the timer.
+            bDissolvingOut = false;
+            DissolveElapsed = 0.f;
 
-        }
-        else
-        {
-            // finished resolve: cleanup Niagara (stop and reset)
-            if (DissolveNiagaraComp)
+            // Optionally ensure Niagara doesn't restart when resolving:
+            if (DissolveNiagaraComp && DissolveNiagaraComp->IsActive())
             {
-                // ResetSystem + Deactivate ensures no leftover particles and stops looping systems
                 DissolveNiagaraComp->Deactivate();
-                DissolveNiagaraComp->ResetSystem();
             }
 
-            // finished fully — make sure invulnerability is ended if not already
-            // (we already set a timer for invuln, but you can clear or adjust it here if desired)
+            // keep the same timer running — the next ticks will handle the resolve
+            return;
+        }
+    }
+    else
+    {
+        // finished resolve (material is back to visible)
+        if (DissolveElapsed >= ResolveDuration)
+        {
+            // Stop the timer — we're totally done
+            GetWorldTimerManager().ClearTimer(TimerHandle_DissolveTick);
+
+            // Cleanup Niagara: stop so it won't keep playing
+            if (DissolveNiagaraComp)
+            {
+                if (DissolveNiagaraComp->IsActive())
+                {
+                    DissolveNiagaraComp->Deactivate();
+                }
+            }
+
+            // Optionally ensure invulnerability ended if you used it just for dodge
+            bIsDodgeInvulnerable = false;
+
+            // Done
+            return;
         }
     }
 

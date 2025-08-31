@@ -85,6 +85,12 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Teleport|Dissolve")
 	FName DissolveParameterName = "DissolveAmount";
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dissolve")
+	float DissolveValueMin = -0.032f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dissolve")
+	float DissolveValueMax = 0.67f;
+
 	UPROPERTY(EditAnywhere, Category = "Teleport|Dissolve")
 	float DissolveDuration = 0.22f;
 
@@ -118,8 +124,9 @@ protected:
 	//// Optional effects
 	//UPROPERTY(EditAnywhere, Category = "Dodge|FX")
 	//UNiagaraSystem* DodgeFX = nullptr;
+
 	// members
-// Niagara component (optional: designer can assign the system asset in BP)
+	// Niagara component (optional: designer can assign the system asset in BP)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Teleport|Dissolve", meta = (AllowPrivateAccess = "true"))
 	UNiagaraComponent* DissolveNiagaraComp = nullptr;
 
@@ -150,20 +157,7 @@ protected:
 
 	void InitDissolveMIDs();
 	void StartDissolveOut();   // begin dissolve (0 -> 1)
-	void StartResolve();       // begin resolve (1 -> 0)
 	void UpdateDissolveTick(); // called by timer
-
-
-	//UPROPERTY(VisibleAnywhere, Category = "ArcPreview")
-	//USplineComponent* TrajectorySpline;
-
-	//UPROPERTY(EditAnywhere, Category = "ArcPreview")
-	//UStaticMesh* SplineMesh;
-
-	//// optionally keep spline mesh components if you want thick mesh segments
-	//UPROPERTY()
-	//TArray<class USplineMeshComponent*> TrajectorySplineMeshes;
-
 
 	// indicator blueprint class to set in editor
 	UPROPERTY(EditAnywhere, Category = "ArcPreview")

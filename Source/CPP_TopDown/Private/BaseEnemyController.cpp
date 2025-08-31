@@ -72,10 +72,10 @@ void ABaseEnemyController::OnTargetPerceptionUpdated(AActor* Actor, FAIStimulus 
         if (Actor == GetPawn())
         {
             // Debug
-            if (GEngine)
-                GEngine->AddOnScreenDebugMessage(
-                    -1, 2.f, FColor::Red,
-                    TEXT("[AI] Damage sense fired on me!"));
+            //if (GEngine)
+            //    GEngine->AddOnScreenDebugMessage(
+            //        -1, 2.f, FColor::Red,
+            //        TEXT("[AI] Damage sense fired on me!"));
 
             GetBlackboardComponent()->SetValueAsEnum(
                 TEXT("State"),

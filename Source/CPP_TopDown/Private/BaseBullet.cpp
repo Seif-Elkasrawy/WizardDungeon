@@ -112,20 +112,6 @@ void ABaseBullet::BulletHit(AActor* OtherActor, const FHitResult& Hit)
     // 5) Finally apply damage—only if we have a DamageType class
     if (DamageType && IsValid(OtherActor))
     {
-        // OPTIONAL: Print to screen as well:
-        if (GEngine)
-        {
-            GEngine->AddOnScreenDebugMessage(
-                -1,
-                5.5f,
-                FColor::Red,
-                FString::Printf(
-                    TEXT("Bullet hit %s for %.1f damage"),
-                    *OtherActor->GetName(),
-                    baseDamage
-                )
-            );
-        }
 
         // IMPORTANT: ApplyDamage may call TakeDamage() on OtherActor which can
         // destroy it synchronously. Do NOT access OtherActor after this call.
