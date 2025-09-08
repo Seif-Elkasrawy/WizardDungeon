@@ -48,6 +48,8 @@ void ABaseMagicCharacter::BeginPlay()
 
 	if (weaponPtr) {
 		weaponPtr->SetPlayerPointer(this);
+        weaponPtr->MeleeDamage = CharacterStats.MeleeDamage; // sync if you want
+        CachedWeapon = weaponPtr; // store a pointer for quick access
 	}
 
 	GetCharacterMovement()->MaxWalkSpeed = CharacterStats.movementSpeed;
@@ -348,42 +350,51 @@ void ABaseMagicCharacter::MeleeAttack()
     // tell the AnimBP we just started an attack
     OnMeleeStart.Broadcast(true);
 
-    // Calculate start/end points of your sweep
-    FVector Start = GetActorLocation();
-    FVector Forward = GetActorForwardVector();
-    FVector End = Start + Forward * CharacterStats.MeleeRange;
-
-    // Do a sphere or capsule sweep
-    TArray<FHitResult> Hits;
-    FCollisionShape Shape = FCollisionShape::MakeSphere(CharacterStats.MeleeRange * 0.5f);
-    bool bHit = GetWorld()->SweepMultiByChannel(
-        Hits,
-        Start,
-        End,
-        FQuat::Identity,
-        ECC_Pawn,              // or a custom channel
-        Shape
-    );
-
-    if (bHit)
+    // If we have a weapon that can do collisions, use it
+    if (CachedWeapon)
     {
-        for (auto& Hit : Hits)
-        {
-            AActor* Other = Hit.GetActor();
-            if (Other && Other != this)
-            {
-
-                // Apply damage
-                UGameplayStatics::ApplyDamage(
-                    Other,
-                    CharacterStats.MeleeDamage,
-                    GetController(),
-                    this,
-                    UDamageType::StaticClass()
-                );
-            }
-        }
+        // start a short hit window; tune 0.15..0.4 s depending on anim
+        CachedWeapon->StartMeleeWindow(MeleeHitWindow);
     }
+    //else {
+    //    // Fallback to SweepMultiByChannelApproach
+    //    // Calculate start/end points of your sweep
+    //    FVector Start = GetActorLocation();
+    //    FVector Forward = GetActorForwardVector();
+    //    FVector End = Start + Forward * CharacterStats.MeleeRange;
+
+    //    // Do a sphere or capsule sweep
+    //    TArray<FHitResult> Hits;
+    //    FCollisionShape Shape = FCollisionShape::MakeSphere(CharacterStats.MeleeRange * 0.5f);
+    //    bool bHit = GetWorld()->SweepMultiByChannel(
+    //        Hits,
+    //        Start,
+    //        End,
+    //        FQuat::Identity,
+    //        ECC_Pawn,              // or a custom channel
+    //        Shape
+    //    );
+
+    //    if (bHit)
+    //    {
+    //        for (auto& Hit : Hits)
+    //        {
+    //            AActor* Other = Hit.GetActor();
+    //            if (Other && Other != this)
+    //            {
+    //                // Apply damage
+    //                UGameplayStatics::ApplyDamage(
+    //                    Other,
+    //                    CharacterStats.MeleeDamage,
+    //                    GetController(),
+    //                    this,
+    //                    UDamageType::StaticClass()
+    //                );
+    //            }
+    //        }
+    //    }
+    //}
+
 
     // Set timer to reset melee
     GetWorld()->GetTimerManager().SetTimer(

@@ -4,9 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h" 
+#include "BaseWeapon.h"
 //#include "AbilitySystemInterface.h"
 //#include "AbilitySystemComponent.h"
 #include "BaseMagicCharacter.generated.h"
+
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBulletFiredDelegate, AActor*, FiredActor);
 
@@ -98,7 +100,7 @@ protected:
 	UPROPERTY(EditAnywhere)
 	UChildActorComponent* Weapon;
 
-
+	ABaseWeapon* CachedWeapon;
 
 	/** All the bullet types this character can fire */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
@@ -156,6 +158,9 @@ protected:
 	// Resets the ability to melee
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void ResetMelee();
+
+	UPROPERTY(EditAnywhere, Category = "Combat|Melee")
+	float MeleeHitWindow = 0.1f;
 
 	UFUNCTION(BlueprintPure)
 	FVector CalculateMovementBlending();
