@@ -25,7 +25,10 @@ ABaseBullet::ABaseBullet()
     //ProjectileMovement->Velocity = GetActorForwardVector() * speed;
 
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
+
+    // default lifespan for pooled bullets (optional)
+    LifeSpan = 5.0f;
 
 }
 
@@ -33,6 +36,15 @@ ABaseBullet::ABaseBullet()
 void ABaseBullet::BeginPlay()
 {
 	Super::BeginPlay();
+
+	collisionSphere->OnComponentHit.AddDynamic(this, &ABaseBullet::OnComponentHit);
+	
+}
+
+void ABaseBullet::InitializeBullet(APawn* InInstigator, const FVector& Velocity)
+{
+    SetOwner(InInstigator);
+    SetInstigator(InInstigator);
 
     // 1) Ignore the pawn that fired us
     if (AActor* MyOwner = GetOwner())
@@ -48,14 +60,28 @@ void ABaseBullet::BeginPlay()
         }
     }
 
-	if (BulletFX && !BulletFX->IsActive())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("BulletFX was not active on BeginPlay, activating it now."));
-		BulletFX->Activate(true);
+    if (ProjectileMovement)
+    {
+        ProjectileMovement->Velocity = Velocity;
+		ProjectileMovement->Activate(true);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("InitializeBullet: ProjectileMovement is null"));
+    }
+
+    if (BulletFX && !BulletFX->IsActive())
+    {
+        BulletFX->Activate(true);
+    }
+    else if (!BulletFX)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("InitializeBullet: BulletFX is null"));
 	}
 
-	collisionSphere->OnComponentHit.AddDynamic(this, &ABaseBullet::OnComponentHit);
-	
+	collisionSphere->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+
+	SetInUse(true);
 }
 
 void ABaseBullet::OnComponentHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
@@ -69,8 +95,7 @@ void ABaseBullet::OnComponentHit(UPrimitiveComponent* HitComp, AActor* OtherActo
 
     BulletHit(OtherActor, Hit);
 
-    // Destroy the bullet actor
-    Destroy();
+    ReturnToPool();
 }
 
 void ABaseBullet::BulletHit(AActor* OtherActor, const FHitResult& Hit)
@@ -127,6 +152,26 @@ void ABaseBullet::BulletHit(AActor* OtherActor, const FHitResult& Hit)
         UE_LOG(LogTemp, Warning, TEXT("BulletHit: DamageType is null"));
     }
 
+}
+
+void ABaseBullet::ReturnToPool()
+{
+    if (ProjectileMovement)
+    {
+        ProjectileMovement->StopMovementImmediately();
+        ProjectileMovement->Deactivate();
+    }
+    if (BulletFX && BulletFX->IsActive())
+    {
+        BulletFX->Deactivate();
+    }
+    //collisionSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+    // reset owner/instigator
+    SetOwner(nullptr);
+    SetInstigator(nullptr);
+
+    APooledActor::ReturnToPool();
 }
 
 // Called every frame

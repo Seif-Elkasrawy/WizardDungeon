@@ -22,7 +22,7 @@ AAOESpell::AAOESpell()
 		ProjectileMovement->ProjectileGravityScale = 1.0f;
 	}
 	// Set this actor to call Tick() every frame
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 }
 
 void AAOESpell::BeginPlay()
@@ -128,7 +128,7 @@ void AAOESpell::Explode()
         }
     }
 
-	// Destroy the spell actor
-	Destroy();
+	// return the spell actor to pool
+    ReturnToPool();
 }
 

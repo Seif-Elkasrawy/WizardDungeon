@@ -3,11 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PooledActor.h"    
 #include "GameFramework/Actor.h"
 #include "BaseBullet.generated.h"
 
 UCLASS()
-class CPP_TOPDOWN_API ABaseBullet : public AActor
+class CPP_TOPDOWN_API ABaseBullet : public APooledActor
 {
 	GENERATED_BODY()
 	
@@ -22,14 +23,20 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	UPROPERTY(VisibleAnywhere)
-	USceneComponent* RootScene;
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Effects")
 	class UNiagaraComponent* BulletFX;
 
 	UPROPERTY(EditDefaultsOnly)
 	class USphereComponent* collisionSphere;
+
+	UPROPERTY(EditDefaultsOnly)
+	class UNiagaraSystem* ImpactParticles;
+
+	UPROPERTY(EditDefaultsOnly)
+	float baseDamage = 20.0f;
+
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<UDamageType> DamageType;
 
 	UFUNCTION()
 	virtual void OnComponentHit(UPrimitiveComponent* HitComp,
@@ -41,14 +48,7 @@ protected:
 
 	virtual void BulletHit(AActor* OtherActor, const FHitResult& Hit);
 
-	UPROPERTY(EditDefaultsOnly)
-	class UNiagaraSystem* ImpactParticles;
-
-	UPROPERTY(EditDefaultsOnly)
-	float baseDamage = 20.0f;
-
-	UPROPERTY(EditDefaultsOnly)
-	TSubclassOf<UDamageType> DamageType;
+	virtual void ReturnToPool() override;
 
 public:	
 	// Called every frame
@@ -56,5 +56,8 @@ public:
 
 	UPROPERTY(EditDefaultsOnly)
 	float speed;
+
+	UFUNCTION(BlueprintCallable)
+	virtual void InitializeBullet(APawn* InInstigator, const FVector& Velocity);
 
 };

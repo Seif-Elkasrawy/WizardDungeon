@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h" 
 #include "BaseWeapon.h"
+#include "StaggeredStateComponent.h"
+#include "AC_ObjectPool.h"
 //#include "AbilitySystemInterface.h"
 //#include "AbilitySystemComponent.h"
 #include "BaseMagicCharacter.generated.h"
@@ -62,10 +64,12 @@ public:
 	// Sets default values for this character's properties
 	ABaseMagicCharacter();
 
-	//~ Begin IAbilitySystemInterface
-	 /** Returns our Ability System Component. */
-	//virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
-	//~ End IAbilitySystemInterface
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UStaggeredStateComponent* StaggeredState;
+
+	//Called     // Called by StaggerStateComponent to block/unblock actions on this character
+	void BlockAllActions();
+	void UnblockAllActions();
 
 	// Broadcast when firing a bullet
 	UPROPERTY(BlueprintAssignable, Category = "Events")
@@ -81,26 +85,27 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Events")
 	FOnMeleeFinished OnMeleeFinished;
 
+	// Forward the request to stagger component (useful for external callers like spells)
+	UFUNCTION(BlueprintCallable, Category = "Stagger")
+	void EnterStagger(float Duration);
+
+	UFUNCTION(BlueprintCallable, Category = "Stagger")
+	void ExitStagger();
+
+	UFUNCTION(BlueprintCallable, Category = "Stagger")
+	bool IsStaggered() const;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-
-	/** The ASC (must be replicated if networked) */
-	//UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS")
-	//UAbilitySystemComponent* AbilitySystem;
-
-	///** (Optional) your health/cooldowns/etc attribute set */
-	//UPROPERTY()
-	//UAttributeSet* Attributes;
-
-	///** Which abilities we grant at spawn */
-	//UPROPERTY(EditDefaultsOnly, Category = "GAS")
-	//TArray<TSubclassOf<UGameplayAbility>> StartupAbilities;
 
 	UPROPERTY(EditAnywhere)
 	UChildActorComponent* Weapon;
 
 	ABaseWeapon* CachedWeapon;
+
+	UPROPERTY(EditAnywhere, Category = "Pooling")
+	UAC_ObjectPool* BaseSpellPool;
 
 	/** All the bullet types this character can fire */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
