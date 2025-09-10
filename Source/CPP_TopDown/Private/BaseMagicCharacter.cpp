@@ -22,6 +22,10 @@ ABaseMagicCharacter::ABaseMagicCharacter()
 	SpawnLocation = CreateDefaultSubobject<USceneComponent>(TEXT("Bullet Spawn Point"));
 	SpawnLocation->SetupAttachment(Weapon, TEXT("SpellSocket"));
 
+    StaggeredState = CreateDefaultSubobject<UStaggeredStateComponent>(TEXT("StaggerState"));
+
+	BaseSpellPool = CreateDefaultSubobject<UAC_ObjectPool>(TEXT("BulletPool"));
+
     CharacterStats.MaxHP = 50.f;
     CharacterStats.HP = CharacterStats.MaxHP;
 	CharacterStats.movementSpeed = 800;
@@ -53,6 +57,42 @@ void ABaseMagicCharacter::BeginPlay()
 	}
 
 	GetCharacterMovement()->MaxWalkSpeed = CharacterStats.movementSpeed;
+}
+
+void ABaseMagicCharacter::EnterStagger(float Duration)
+{
+    if (StaggeredState)
+    {
+        StaggeredState->EnterStagger(Duration);
+    }
+}
+
+void ABaseMagicCharacter::ExitStagger()
+{
+    if (StaggeredState)
+    {
+        StaggeredState->ExitStagger();
+    }
+}
+
+bool ABaseMagicCharacter::IsStaggered() const
+{
+	return StaggeredState && StaggeredState->IsStaggered();
+}
+
+void ABaseMagicCharacter::BlockAllActions()
+{
+    canFire = false;
+    bCanMelee = false;
+    isShooting = false;
+    isMeleeAttacking = false;
+}
+
+void ABaseMagicCharacter::UnblockAllActions()
+{
+    canFire = true;
+    bCanMelee = true;
+    // Don't reset isShooting or isMeleeAttacking here; those should be managed by the action logic itself
 }
 
 float ABaseMagicCharacter::TakeDamage(float DamageCount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
@@ -175,6 +215,8 @@ void ABaseMagicCharacter::Tick(float DeltaTime)
 
 AActor* ABaseMagicCharacter::ShootBullet(const FVector& Velocity)
 {
+	if (IsStaggered()) return nullptr; // guard against shooting while staggered
+
     // 1) Compute the full rotation
     FRotator FullRot = Velocity.Rotation();
 
@@ -188,10 +230,7 @@ AActor* ABaseMagicCharacter::ShootBullet(const FVector& Velocity)
 	}
 
 
-    if (!canFire)
-    {
-        return nullptr;
-    }
+    if (!canFire) return nullptr;
     canFire = false;
 
     // 1) Sanity–check your spawn data:
@@ -219,18 +258,49 @@ AActor* ABaseMagicCharacter::ShootBullet(const FVector& Velocity)
         CharacterStats.fireRate,
         false);
 
-    // 3) Spawn the bullet
-    FActorSpawnParameters SpawnParams;
-    SpawnParams.Instigator = this;
-    SpawnParams.Owner = this;     // also set owner, so GetInstigator() works
-
     FRotator GeneralShootRotation = YawOnlyRot;
 
-    auto* Bullet = GetWorld()->SpawnActor<ABaseBullet>(
-        BulletToSpawn,
-        SpawnLocation->GetComponentLocation(),
-        GeneralShootRotation,
-        SpawnParams);
+    // 3) Get a pooled actor
+	APooledActor* PooledActor = nullptr;
+    if (BaseSpellPool)
+    {
+		PooledActor = BaseSpellPool->GetPooledActor(BulletToSpawn);
+	}
+
+    ABaseBullet* Bullet = nullptr;
+    if (PooledActor)
+    {
+        Bullet = Cast<ABaseBullet>(PooledActor);
+        if (Bullet)
+        {
+            Bullet->SetActorLocation(SpawnLocation->GetComponentLocation());
+            Bullet->SetActorRotation(GeneralShootRotation);
+            Bullet->InitializeBullet(this, Velocity);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("[%s] ShootBullet: Pooled actor is not a ABaseBullet!"), *GetName());
+        }
+	}
+
+    // fallback: spawn if pool missing/exhausted
+    //if (!Bullet) {
+    //    FActorSpawnParameters SpawnParams;
+    //    SpawnParams.Instigator = this;
+    //    SpawnParams.Owner = this;     // also set owner, so GetInstigator() works
+
+    //    auto* NewBullet = GetWorld()->SpawnActor<ABaseBullet>(
+    //        BulletToSpawn,
+    //        SpawnLocation->GetComponentLocation(),
+    //        GeneralShootRotation,
+    //        SpawnParams);
+
+    //    if (NewBullet) {
+    //        NewBullet->InitializeBullet(this, Velocity);
+    //        Bullet = NewBullet;
+    //    }
+    //}
+
 
  //   if (GEngine)
  //   {
@@ -337,11 +407,13 @@ void ABaseMagicCharacter::EnsureDynamicMaterials()
 
 void ABaseMagicCharacter::SetCanFire(bool value)
 {
-	canFire = true;
+	canFire = value;
 }
 
 void ABaseMagicCharacter::MeleeAttack()
 {
+	if (IsStaggered()) return; // guard against attacking while staggered
+
     if (!bCanMelee)
         return;
 

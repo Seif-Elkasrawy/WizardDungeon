@@ -130,6 +130,39 @@ void AVerticalBeamSpell::BeginPlay()
     }
 }
 
+void AVerticalBeamSpell::PruneStaggerCooldowns(float MaxAgeSeconds)
+{
+    if (!GetWorld()) return;
+    const float Now = GetWorld()->GetTimeSeconds();
+
+    TArray<TWeakObjectPtr<AActor>> KeysToRemove;
+    KeysToRemove.Reserve(16);
+
+    for (auto& Pair : NextAllowedStaggerTime)
+    {
+        const TWeakObjectPtr<AActor>& WeakActor = Pair.Key;
+        const float NextAllowed = Pair.Value;
+
+        // remove invalid actors immediately
+        if (!WeakActor.IsValid())
+        {
+            KeysToRemove.Add(WeakActor);
+            continue;
+        }
+
+        // remove entries older than Now - MaxAgeSeconds (stale)
+        if (NextAllowed < Now - MaxAgeSeconds)
+        {
+            KeysToRemove.Add(WeakActor);
+        }
+    }
+
+    for (const TWeakObjectPtr<AActor>& K : KeysToRemove)
+    {
+        NextAllowedStaggerTime.Remove(K);
+    }
+}
+
 void AVerticalBeamSpell::StartDamagePhase()
 {
     // Safety
@@ -207,6 +240,8 @@ void AVerticalBeamSpell::ApplyDamageTick()
         }
     }
 
+    const float Now = GetWorld()->GetTimeSeconds();
+
     TArray<TWeakObjectPtr<AActor>> ToRemove;
     for (auto WeakA : OverlappingActors)
     {
@@ -216,10 +251,6 @@ void AVerticalBeamSpell::ApplyDamageTick()
             ToRemove.Add(WeakA);
             continue;
         }
-
-        // Optionally restrict to pawns/characters:
-        //APawn* P = Cast<APawn>(Actor);
-        //if (!P) continue;
 
         // Debug: print actor info so we know who we hit
         //if (GEngine)
@@ -231,15 +262,54 @@ void AVerticalBeamSpell::ApplyDamageTick()
 		// Apply damage to the actor
         UGameplayStatics::ApplyDamage(Actor, DamagePerTick, InstigatorController, this, UDamageType::StaticClass());
 
-        // Optionally: if you expect immediate effect and want to be extra sure, call TakeDamage directly
-        // (only for debugging; remove in production)
-        //if (ABaseMagicCharacter* M = Cast<ABaseMagicCharacter>(Actor))
-        //{
-        //    M->TakeDamage(DamagePerTick, FDamageEvent(), InstigatorController, this);
-        //}
+        // Stagger handling: only if we have montage or we want to call EnterStagger
+        // Check per-actor cooldown so beam ticks don't re-stagger every tick
+        float NextAllowed = NextAllowedStaggerTime.FindRef(Actor);
+        if (Now < NextAllowed)
+        {
+            continue; // still cooling down for this actor
+        }
+        
+        // --- Play hit montage if we have one assigned and the actor has an anim instance ---
+        if (GetHitAnim_Montage)
+        {
+            USkeletalMeshComponent* MeshComp = nullptr;
+
+            // Prefer Character::GetMesh for characters
+            if (ACharacter* HitChar = Cast<ACharacter>(Actor))
+            {
+                MeshComp = HitChar->GetMesh();
+            }
+            else
+            {
+                // Fallback: try to find any skeletal mesh component on the actor
+                MeshComp = Actor->FindComponentByClass<USkeletalMeshComponent>();
+            }
+
+            if (MeshComp)
+            {
+                if (UAnimInstance* AnimInst = MeshComp->GetAnimInstance())
+                {
+
+                    float MontageDuration = AnimInst->Montage_Play(GetHitAnim_Montage, 1.0f);
+
+                    // Apply a fixed short stagger duration regardless of montage length
+                    float StaggerDur = StaggerDurationOverride > 0.f ? StaggerDurationOverride : MontageDuration;
+                    if (ABaseMagicCharacter* MagicChar = Cast<ABaseMagicCharacter>(Actor))
+                    {
+                        MagicChar->EnterStagger(StaggerDur);
+                    }
+
+					// Set next allowed stagger time for this actor
+					NextAllowedStaggerTime.Add(Actor, Now + StaggerDur + StaggerCooldownBuffer);
+
+                }
+            }
+        }
     }
 
     for (auto& R : ToRemove) OverlappingActors.Remove(R);
+    PruneStaggerCooldowns(PruneIntervalSeconds);
 }
 
 void AVerticalBeamSpell::EndBeam()
@@ -283,5 +353,19 @@ void AVerticalBeamSpell::ConfigureCollider()
     Collider->SetBoxExtent(FVector(Radius, Radius, Height * 0.5f));
     // Keep collider's center at actor origin so beam is centered on actor
     Collider->SetRelativeLocation(FVector::ZeroVector);
+}
+
+void AVerticalBeamSpell::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+
+    if (!GetWorld()) return;
+
+    const float Now = GetWorld()->GetTimeSeconds();
+    if (Now - LastPruneTime >= PruneIntervalSeconds)
+    {
+        PruneStaggerCooldowns(PruneIntervalSeconds); // prune entries older than ~PruneIntervalSeconds
+        LastPruneTime = Now;
+    }
 }
 

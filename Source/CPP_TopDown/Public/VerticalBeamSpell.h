@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "PooledActor.h"
 #include "Components/BoxComponent.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
@@ -11,7 +12,7 @@
 
 
 UCLASS()
-class CPP_TOPDOWN_API AVerticalBeamSpell : public AActor
+class CPP_TOPDOWN_API AVerticalBeamSpell : public APooledActor
 {
 	GENERATED_BODY()
 	
@@ -49,6 +50,29 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "Beam")
     float DamageStartDelay = 1.0f;
 
+    UPROPERTY(EditDefaultsOnly, Category = "Effects")
+    UAnimMontage* GetHitAnim_Montage;
+
+    /** Stagger duration we want to enforce regardless of montage length */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stagger")
+    float StaggerDurationOverride = 0.3f;
+
+    /** Small buffer before re-applying stagger again (optional) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stagger")
+    float StaggerCooldownBuffer = 0.05f;
+
+    /** Map of actor -> world time (seconds) when next stagger is allowed */
+    TMap<TWeakObjectPtr<AActor>, float> NextAllowedStaggerTime;
+
+    // pruning control
+    UPROPERTY(EditAnywhere, Category = "Stagger")
+    float PruneIntervalSeconds = 5.0f;
+
+    float LastPruneTime = 0.0f;
+
+    // function declaration
+    void PruneStaggerCooldowns(float MaxAgeSeconds = 5.0f);
+
     // Called when the warning period ends — enables collider and starts damage ticking.
     UFUNCTION()
     void StartDamagePhase();
@@ -79,5 +103,9 @@ protected:
 
     // helper to configure collider extents
     void ConfigureCollider();
+
+public:
+
+	virtual void Tick(float DeltaTime) override;
 
 };

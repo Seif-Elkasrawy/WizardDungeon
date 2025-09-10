@@ -201,7 +201,7 @@
         AVerticalBeamSpell* Beam = World->SpawnActor<AVerticalBeamSpell>(VerticalBeamSpellClass, SpawnLoc, SpawnRot, Params);
         if (!Beam) return;
 
-        // Optionally assign the Niagara asset on the spawned actor if you want to set it dynamically:
+        // Optionally assign the Niagara asset on the spawned actors to set it dynamically:
         // Beam->BeamFX = VerticalBeamFX; // if you kept VerticalBeamFX as member on enemy
 
         Beam->Initialize(TargetActor, bAttachToTarget, Duration, BeamScale, /*DamagePerSecond=*/20.f, /*Tick=*/0.2f);
