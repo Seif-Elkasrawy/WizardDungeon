@@ -20,7 +20,7 @@ public:
     AVerticalBeamSpell();
 
     /** Initialize the beam after spawning. Call this from the spawner (enemy). */
-    void Initialize(AActor* TargetActor, bool bAttachToTarget = false, float Duration = 2.0f, float BeamScale = 1.0f, float DamagePerSecond = 20.0f, float TickInterval = 0.2f);
+    void Initialize(AActor* TargetActor, float Duration = 2.0f, float BeamScale = 1.0f, float DamagePerSecond = 20.0f, float TickInterval = 0.2f);
 
 protected:
     virtual void BeginPlay() override;

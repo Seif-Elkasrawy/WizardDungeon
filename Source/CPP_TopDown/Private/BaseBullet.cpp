@@ -27,8 +27,9 @@ ABaseBullet::ABaseBullet()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
+	BulletFX->SetAutoActivate(false);
     // default lifespan for pooled bullets (optional)
-    LifeSpan = 5.0f;
+    LifeSpan = 2.0f;
 
 }
 
@@ -80,8 +81,6 @@ void ABaseBullet::InitializeBullet(APawn* InInstigator, const FVector& Velocity)
 	}
 
 	collisionSphere->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-
-	SetInUse(true);
 }
 
 void ABaseBullet::OnComponentHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
@@ -165,7 +164,7 @@ void ABaseBullet::ReturnToPool()
     {
         BulletFX->Deactivate();
     }
-    //collisionSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    collisionSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
     // reset owner/instigator
     SetOwner(nullptr);

@@ -56,4 +56,17 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Explosion")
 	float KnockbackRadius = 0.0f; // 0 = use ExplosionRadius
 
+	UPROPERTY(EditDefaultsOnly, Category = "Effects")
+	UAnimMontage* GetHitAnim_Montage;
+
+	/** Stagger duration we want to enforce regardless of montage length */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stagger")
+	float StaggerDurationOverride = 0.5f;
+
+	/** Small buffer before re-applying stagger again (optional) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stagger")
+	float StaggerCooldownBuffer = 0.05f;
+
+	/** Map of actor -> world time (seconds) when next stagger is allowed */
+	TMap<TWeakObjectPtr<AActor>, float> NextAllowedStaggerTime;
 };

@@ -78,5 +78,5 @@ public:
 	 *  If bAttachToTarget == true, beam is attached to the target's root component.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "FX")
-	void SpawnVerticalBeamAtActor(AActor* TargetActor, float Duration = 2.0f, bool bAttachToTarget = false, float BeamScale = 0.1f);
+	void SpawnVerticalBeamAtActor(AActor* TargetActor, float Duration = 2.0f, float BeamScale = 0.1f);
 };

@@ -21,6 +21,11 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	// inside APooledActor.h (public or protected area)
+	UPROPERTY(VisibleAnywhere, Category = "Pool")
+	bool bHasBegunPlay = false;
+
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;

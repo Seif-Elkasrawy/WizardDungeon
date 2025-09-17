@@ -18,7 +18,7 @@ EBTNodeResult::Type UBTTask_EnemyVerticalBeam::ExecuteTask(UBehaviorTreeComponen
 		if (Player)
 		{
 			// spawn above player by 900 units, attach = false, duration = 2s
-			Enemy->SpawnVerticalBeamAtActor(Player, 2.0f, false, 0.1f);
+			Enemy->SpawnVerticalBeamAtActor(Player, 2.0f, 0.1f);
 		}
 
 		return EBTNodeResult::Succeeded;

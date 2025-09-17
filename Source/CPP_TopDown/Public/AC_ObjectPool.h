@@ -39,7 +39,8 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pooling", meta = (EditCondition = "bCanGrow"))
 	int32 GrowthSize = 5;
 
-	TMap<UClass*, TArray<TWeakObjectPtr<APooledActor>>> PerClassPools;
+	//TMap<UClass*, TArray<TWeakObjectPtr<APooledActor>>> PerClassPools;
+	TMap<UClass*, TArray<APooledActor*>> PerClassPools;
 
 	UFUNCTION()
 	void InitializePool();
@@ -61,5 +62,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Pooling")
 	void GrowPool(TSubclassOf<APooledActor> ForClass, int32 NumToAdd);
-		
+
+	UFUNCTION(BlueprintCallable, Category = "Pooling")
+	void PoolPrewarmReport();
 };

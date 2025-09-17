@@ -19,7 +19,16 @@ void APooledActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	SetInUse(false);
+    // mark that BeginPlay happened so SetInUse(false) will notify the pool only afterwards
+    bHasBegunPlay = true;
+
+    // Ensure default state: not in use and deactivated for pooling
+    bInUse = false;
+
+    // Hide/disable visuals if created in game (only apply minimal deactivation here; do not notify pool)
+    SetActorHiddenInGame(true);
+    SetActorEnableCollision(false);
+    SetActorTickEnabled(false);
 }
 
 // Called every frame
@@ -31,39 +40,44 @@ void APooledActor::Tick(float DeltaTime)
 
 void APooledActor::SetInUse(bool bActive)
 {
-	// If no change, do nothing (prevents re-triggering timers)
-	if (bInUse == bActive) return;
+    UE_LOG(LogTemp, Log, TEXT("[PooledActor] %s SetInUse(%d) Called. OwningPool=%s bHasBegunPlay=%d"),
+        *GetName(), (int)bActive, *GetNameSafe(OwningPool), (int)bHasBegunPlay);
 
-	bInUse = bActive;
+    if (bInUse == bActive) return; // no-op if already in that state
 
-	if (bInUse)
-	{
-		SetActorHiddenInGame(false);
-		SetActorEnableCollision(true);
-		SetActorTickEnabled(true);
+    bInUse = bActive;
 
-		// start auto-return timer if requested
-		if (LifeSpan > 0.0f)
-		{
-			GetWorldTimerManager().ClearTimer(LifeSpanTimerHandle);
-			GetWorldTimerManager().SetTimer(LifeSpanTimerHandle, this, &APooledActor::OnLifeSpanExpired, LifeSpan, false);
-		}
-	}
-	else
-	{
-		SetActorHiddenInGame(true);
-		SetActorEnableCollision(false);
-		SetActorTickEnabled(false);
+    if (bInUse)
+    {
+        SetActorHiddenInGame(false);
+        SetActorEnableCollision(true);
+        SetActorTickEnabled(true);
 
-		GetWorldTimerManager().ClearTimer(LifeSpanTimerHandle);
+        if (LifeSpan > 0.f)
+        {
+            GetWorldTimerManager().SetTimer(LifeSpanTimerHandle, [this]() { SetInUse(false); }, LifeSpan, false);
+        }
+        else
+        {
+            GetWorldTimerManager().ClearTimer(LifeSpanTimerHandle);
+        }
+    }
+    else
+    {
 
-		// Notify pool that we're available (pool may do additional cleanup)
-		if (OwningPool)
-		{
-			OwningPool->NotifyActorAvailable(this);
-		}
-	}
+        SetActorHiddenInGame(true);
+        SetActorEnableCollision(false);
+        SetActorTickEnabled(false);
+        GetWorldTimerManager().ClearTimer(LifeSpanTimerHandle);
+
+        // Only notify pool if BeginPlay ran (prevents race during construction/deferred spawn)
+        if (OwningPool && bHasBegunPlay)
+        {
+            OwningPool->NotifyActorAvailable(this);
+        }
+    }
 }
+
 
 void APooledActor::ReturnToPool()
 {

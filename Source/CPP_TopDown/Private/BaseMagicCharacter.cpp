@@ -24,7 +24,7 @@ ABaseMagicCharacter::ABaseMagicCharacter()
 
     StaggeredState = CreateDefaultSubobject<UStaggeredStateComponent>(TEXT("StaggerState"));
 
-	BaseSpellPool = CreateDefaultSubobject<UAC_ObjectPool>(TEXT("BulletPool"));
+	BaseSpellPool = CreateDefaultSubobject<UAC_ObjectPool>(TEXT("BaseSpellPool"));
 
     CharacterStats.MaxHP = 50.f;
     CharacterStats.HP = CharacterStats.MaxHP;
@@ -282,24 +282,6 @@ AActor* ABaseMagicCharacter::ShootBullet(const FVector& Velocity)
             UE_LOG(LogTemp, Error, TEXT("[%s] ShootBullet: Pooled actor is not a ABaseBullet!"), *GetName());
         }
 	}
-
-    // fallback: spawn if pool missing/exhausted
-    //if (!Bullet) {
-    //    FActorSpawnParameters SpawnParams;
-    //    SpawnParams.Instigator = this;
-    //    SpawnParams.Owner = this;     // also set owner, so GetInstigator() works
-
-    //    auto* NewBullet = GetWorld()->SpawnActor<ABaseBullet>(
-    //        BulletToSpawn,
-    //        SpawnLocation->GetComponentLocation(),
-    //        GeneralShootRotation,
-    //        SpawnParams);
-
-    //    if (NewBullet) {
-    //        NewBullet->InitializeBullet(this, Velocity);
-    //        Bullet = NewBullet;
-    //    }
-    //}
 
 
  //   if (GEngine)

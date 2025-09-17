@@ -35,11 +35,23 @@ AVerticalBeamSpell::AVerticalBeamSpell()
 
 }
 
-void AVerticalBeamSpell::Initialize(AActor* TargetActor, bool bAttachToTarget, float Duration, float BeamScale, float DamagePerSecond, float TickInterval)
+// Called when the game starts or when spawned
+void AVerticalBeamSpell::BeginPlay()
+{
+    Super::BeginPlay();
+
+    // If BeamFX was assigned in C++ defaults (rare), you can set it here:
+    if (BeamFX && NiagaraComp)
+    {
+        NiagaraComp->SetAsset(BeamFX);
+    }
+}
+
+void AVerticalBeamSpell::Initialize(AActor* TargetActor, float Duration, float BeamScale, float DamagePerSecond, float TickInterval)
 {
     if (!TargetActor)
     {
-        Destroy();
+        ReturnToPool();
         return;
     }
 
@@ -60,47 +72,17 @@ void AVerticalBeamSpell::Initialize(AActor* TargetActor, bool bAttachToTarget, f
 
     if (BeamFX)
     {
-        if (bAttachToTarget)
+        NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), BeamFX, SpawnLocation, SpawnRotation);
+        if (NiagaraComp)
         {
-            NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAttached(
-                BeamFX,
-                TargetActor->GetRootComponent(),
-                NAME_None,
-                FVector::ZeroVector,
-                SpawnRotation,
-                EAttachLocation::KeepRelativeOffset,
-                true,
-                true
-            );
-            if (NiagaraComp)
-            {
-                NiagaraComp->SetRelativeScale3D(FVector(Scale));
-            }
-        }
-        else
-        {
-            NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), BeamFX, SpawnLocation, SpawnRotation);
-            if (NiagaraComp)
-            {
-                NiagaraComp->SetWorldScale3D(FVector(Scale));
-                // Activate the system now (if you want it to play immediately)
-                NiagaraComp->Activate(true);
-            }
+            NiagaraComp->SetWorldScale3D(FVector(Scale));
+            // Activate the system now (if you want it to play immediately)
+            NiagaraComp->Activate(true);
         }
     }
 
     // Configure collider extents & enable overlap
-    // We'll attach collider to target so it moves with them if bAttachToTarget is true.
-    if (bAttachToTarget)
-    {
-        // attach this actor to the target so both Niagara and collider follow it
-        AttachToActor(TargetActor, FAttachmentTransformRules::KeepWorldTransform);
-        SetActorRelativeLocation(FVector::ZeroVector);
-    }
-    else
-    {
-        SetActorLocation(SpawnLocation);
-    }
+    SetActorLocation(SpawnLocation);
 
     if (DamageStartDelay <= 0.0f)
     {
@@ -115,18 +97,6 @@ void AVerticalBeamSpell::Initialize(AActor* TargetActor, bool bAttachToTarget, f
     if (Lifetime > 0.f)
     {
         GetWorld()->GetTimerManager().SetTimer(LifeTimer, this, &AVerticalBeamSpell::EndBeam, Lifetime, false);
-    }
-}
-
-// Called when the game starts or when spawned
-void AVerticalBeamSpell::BeginPlay()
-{
-	Super::BeginPlay();
-	
-    // If BeamFX was assigned in C++ defaults (rare), you can set it here:
-    if (BeamFX && NiagaraComp)
-    {
-        NiagaraComp->SetAsset(BeamFX);
     }
 }
 
@@ -328,15 +298,14 @@ void AVerticalBeamSpell::EndBeam()
 
     OverlappingActors.Empty();
 
-    // destroy Niagara component if present
+	// Deactivate Niagara
     if (IsValid(NiagaraComp))
     {
-        NiagaraComp->DestroyComponent();
+        NiagaraComp->Deactivate();
         NiagaraComp = nullptr;
     }
 
-    // Destroy this actor (will also remove collider)
-    Destroy();
+    APooledActor::ReturnToPool();
 }
 
 void AVerticalBeamSpell::ConfigureCollider()

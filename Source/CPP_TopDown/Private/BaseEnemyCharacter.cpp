@@ -184,27 +184,27 @@
         return Applied;
     }
 
-    void ABaseEnemyCharacter::SpawnVerticalBeamAtActor(AActor* TargetActor, float Duration, bool bAttachToTarget, float BeamScale)
+    void ABaseEnemyCharacter::SpawnVerticalBeamAtActor(AActor* TargetActor, float Duration, float BeamScale)
     {
         if (!TargetActor || !VerticalBeamSpellClass) return;
 
         UWorld* World = GetWorld();
         if (!World) return;
 
-        FActorSpawnParameters Params;
-        Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-        Params.Owner = this;
+        AVerticalBeamSpell* Beam = nullptr;
 
-        FVector SpawnLoc = TargetActor->GetActorLocation();
-        FRotator SpawnRot = FRotator::ZeroRotator;
-
-        AVerticalBeamSpell* Beam = World->SpawnActor<AVerticalBeamSpell>(VerticalBeamSpellClass, SpawnLoc, SpawnRot, Params);
-        if (!Beam) return;
-
-        // Optionally assign the Niagara asset on the spawned actors to set it dynamically:
-        // Beam->BeamFX = VerticalBeamFX; // if you kept VerticalBeamFX as member on enemy
-
-        Beam->Initialize(TargetActor, bAttachToTarget, Duration, BeamScale, /*DamagePerSecond=*/20.f, /*Tick=*/0.2f);
+        if (BaseSpellPool) {
+			APooledActor* PooledActor = BaseSpellPool->GetPooledActor(VerticalBeamSpellClass);
+			Beam = Cast<AVerticalBeamSpell>(PooledActor);
+            if (Beam) {
+                Beam->SetActorLocation(TargetActor->GetActorLocation());
+                Beam->Initialize(TargetActor, Duration, BeamScale, /*DamagePerSecond=*/20.f, /*Tick=*/0.2f);
+                return;
+            }
+            else {
+				UE_LOG(LogTemp, Error, TEXT("[%s] SpawnVerticalBeamAtActor: Pooled actor is not a AVerticalBeamSpell!"), *GetName());
+            }
+        }
     }
 
     void ABaseEnemyCharacter::Tick(float DeltaTime)
