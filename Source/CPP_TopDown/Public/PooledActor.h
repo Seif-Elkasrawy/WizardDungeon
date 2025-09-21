@@ -25,7 +25,6 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Pool")
 	bool bHasBegunPlay = false;
 
-
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -35,6 +34,13 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pooling")
 	float LifeSpan;
+
+	// editable tuning parameter
+	UPROPERTY(EditAnywhere, Category = "Pool")
+	float MinReuseDelay = 0.5f;    // 0.05s (50 ms) — tune to 0.1s if needed
+
+	// runtime bookkeeping
+	float LastReturnedTime = -FLT_MAX;
 
 	FTimerHandle LifeSpanTimerHandle;
 

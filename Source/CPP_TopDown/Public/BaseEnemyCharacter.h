@@ -51,6 +51,12 @@ protected:
 	APatrolRoute* PatrolRouteActor;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Spells")
+	TSubclassOf<ABaseBullet> BaseSpellClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Spells")
+	TSubclassOf<ABaseBullet> ShardSpellClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Spells")
 	TSubclassOf<AVerticalBeamSpell> VerticalBeamSpellClass;
 
 	USplineComponent* SplineComp;
@@ -77,6 +83,10 @@ public:
 	/** Spawn a vertical beam at or above the given target actor.
 	 *  If bAttachToTarget == true, beam is attached to the target's root component.
 	 */
+
+	UFUNCTION(BlueprintCallable, Category = "Spells")
+	void TryFireSpell();
+
 	UFUNCTION(BlueprintCallable, Category = "FX")
 	void SpawnVerticalBeamAtActor(AActor* TargetActor, float Duration = 2.0f, float BeamScale = 0.1f);
 };

@@ -140,8 +140,30 @@ APooledActor* UAC_ObjectPool::GetPooledActor(TSubclassOf<APooledActor> Requested
 	if (!PerClassPools.Contains(RequestKey))
 	{
 		PerClassPools.Add(RequestKey, TArray<APooledActor*>());
+		PerClassNextIndex.Add(RequestKey, 0);
 		GrowPoolForClass(UseClass, PoolSize);
 	}
+
+	// get current time once
+	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+
+	// Helper lambda used to test whether actor is ready to be reused
+	auto IsActorReadyForReuse = [&](APooledActor* Actor) -> bool
+		{
+			if (!IsValid(Actor)) return false;
+			if (Actor->bInUse) return false;
+
+			// respect per-actor minimum reuse delay (if set)
+			// Actor->LastReturnedTime and Actor->MinReuseDelay must exist on APooledActor
+			if (Actor->MinReuseDelay > 0.f)
+			{
+				if (Now - Actor->LastReturnedTime < Actor->MinReuseDelay)
+				{
+					return false; // still cooling down
+				}
+			}
+			return true;
+		};
 
 	// First attempt: exact key match
 	{
@@ -162,14 +184,23 @@ APooledActor* UAC_ObjectPool::GetPooledActor(TSubclassOf<APooledActor> Requested
 		for (APooledActor* A : PoolArray) if (IsValid(A) && !A->bInUse) ++freeCount;
 		UE_LOG(LogTemp, Log, TEXT("[Pool] GetPooledActor debug for %s: total=%d free=%d"), *GetNameSafe(RequestKey), total, freeCount);
 
-		for (APooledActor*& Actor : PoolArray)
+		if (total > 0) 
 		{
-			if (Actor && !Actor->bInUse)
+			int32 start = PerClassNextIndex.FindRef(RequestKey);
+			start = FMath::Clamp(start, 0, total - 1);
+			for (int32 offset = 0; offset < total; ++offset)
 			{
-				Actor->SetInUse(true);
-				UE_LOG(LogTemp, Log, TEXT("[Pool] -> returning pooled actor '%s' (bInUse=%d) from class pool %s"),
-					*Actor->GetName(), Actor->bInUse, *GetNameSafe(RequestKey));
-				return Actor;
+				int32 idx = (start + offset) % total;
+				APooledActor* Actor = PoolArray[idx];
+				if (IsActorReadyForReuse(Actor))
+				{
+					// update next index to just after the chosen one
+					PerClassNextIndex.Add(RequestKey, (idx + 1) % total);
+					Actor->SetInUse(true);
+					UE_LOG(LogTemp, Log, TEXT("[Pool %p] -> returning pooled actor '%s' idx=%d lastReturned=%.3f (Now=%.3f)"),
+						this, *Actor->GetName(), idx, Actor->LastReturnedTime, Now);
+					return Actor;
+				}
 			}
 		}
 	}
@@ -184,13 +215,22 @@ APooledActor* UAC_ObjectPool::GetPooledActor(TSubclassOf<APooledActor> Requested
 		if (Key->IsChildOf(RequestKey) || RequestKey->IsChildOf(Key))
 		{
 			TArray<APooledActor*>& PoolArray = PerClassPools.FindOrAdd(Key);
-			for (APooledActor* Actor : PoolArray)
+			int32 total = PoolArray.Num();
+			if (total == 0) continue;
+
+			int32 start = PerClassNextIndex.FindRef(Key);
+			start = FMath::Clamp(start, 0, total - 1);
+
+			for (int32 offset = 0; offset < total; ++offset)
 			{
-				if (Actor && !Actor->bInUse)
+				int32 idx = (start + offset) % total;
+				APooledActor* Actor = PoolArray[idx];
+				if (IsActorReadyForReuse(Actor))
 				{
+					PerClassNextIndex.Add(Key, (idx + 1) % total);
 					Actor->SetInUse(true);
-					UE_LOG(LogTemp, Log, TEXT("[Pool] -> returning pooled actor '%s' (bInUse=%d) from nearby class pool %s"),
-						*Actor->GetName(), Actor->bInUse, *GetNameSafe(Key));
+					UE_LOG(LogTemp, Log, TEXT("[Pool %p] -> returning pooled actor '%s' idx=%d from nearby key %s lastReturned=%.3f (Now=%.3f)"),
+						this, *Actor->GetName(), idx, *GetNameSafe(Key), Actor->LastReturnedTime, Now);
 					return Actor;
 				}
 			}
@@ -205,13 +245,17 @@ APooledActor* UAC_ObjectPool::GetPooledActor(TSubclassOf<APooledActor> Requested
 
 		// After growing, try again
 		TArray<APooledActor*>& PoolArray2 = PerClassPools.FindOrAdd(RequestKey);
-		for (APooledActor*& Actor : PoolArray2)
+		for (int32 i = 0; i < PoolArray2.Num(); ++i)
 		{
-			if (Actor && !Actor->bInUse)
+			APooledActor* Actor = PoolArray2[i];
+			if (IsActorReadyForReuse(Actor))
 			{
+				// set next index to one after this picked actor
+				PerClassNextIndex.Add(RequestKey, (i + 1) % PoolArray2.Num());
+
 				Actor->SetInUse(true);
-				UE_LOG(LogTemp, Log, TEXT("[Pool] -> grow pooled actor then get spawned '%s' (bInUse=%d) from class pool %s"),
-					*Actor->GetName(), Actor->bInUse, *GetNameSafe(RequestKey));
+				UE_LOG(LogTemp, Log, TEXT("[Pool %p] -> grow pooled actor then get spawned '%s' (bInUse=%d) from class pool %s"),
+					this, *Actor->GetName(), Actor->bInUse, *GetNameSafe(RequestKey));
 				return Actor;
 			}
 		}

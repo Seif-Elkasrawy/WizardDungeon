@@ -2,6 +2,7 @@
 
 
     #include "BaseEnemyCharacter.h"
+    #include "BaseBullet.h"
     #include "NiagaraFunctionLibrary.h"
     #include "NiagaraComponent.h"
     #include "Components/BoxComponent.h"
@@ -183,6 +184,30 @@
 
         return Applied;
     }
+
+    // In ABaseEnemyCharacter.cpp (or wherever you spawn spells)
+    void ABaseEnemyCharacter::TryFireSpell()
+    {
+        if (!BaseSpellPool) return;
+
+        // Simple weights (e.g. base = 70%, shard = 30%)
+        float BaseWeight = 0.7f;
+        float ShardWeight = 0.3f;
+
+        // Optionally adjust weights based on state (low health -> more shard)
+        if (CharacterStats.HP < CharacterStats.MaxHP * 0.3f)
+        {
+            ShardWeight = 0.6f;
+            BaseWeight = 0.4f;
+        }
+
+        float R = FMath::FRand(); // 0..1
+        TSubclassOf<ABaseBullet> ChosenClass = (R < ShardWeight && ShardSpellClass) ? ShardSpellClass : BaseSpellClass;
+
+        if (ChosenClass == BaseSpellClass) SetBulletTypeByIndex(0);
+        else if (ChosenClass == ShardSpellClass) SetBulletTypeByIndex(1);
+    }
+
 
     void ABaseEnemyCharacter::SpawnVerticalBeamAtActor(AActor* TargetActor, float Duration, float BeamScale)
     {

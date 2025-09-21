@@ -7,8 +7,6 @@
 #include "BaseWeapon.h"
 #include "StaggeredStateComponent.h"
 #include "AC_ObjectPool.h"
-//#include "AbilitySystemInterface.h"
-//#include "AbilitySystemComponent.h"
 #include "BaseMagicCharacter.generated.h"
 
 

@@ -104,8 +104,9 @@ protected:
 	float DissolveElapsed = 0.f;
 	bool bDissolvingOut = false; // true = dissolving (hide); false = resolving (show)
 
-
-	// Teleport / Dodge settings
+	/// <summary>
+	/// Teleport / Dodge Settings
+	/// </summary>
 	UPROPERTY(EditAnywhere, Category = "Dodge")
 	float DodgeDistance = 800.0f;                     // how far to teleport (cm)
 
@@ -120,10 +121,6 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Dodge")
 	float DodgeSweepHalfHeight = 88.0f;               // capsule half-height for sweep (cm)
-
-	//// Optional effects
-	//UPROPERTY(EditAnywhere, Category = "Dodge|FX")
-	//UNiagaraSystem* DodgeFX = nullptr;
 
 	// members
 	// Niagara component (optional: designer can assign the system asset in BP)

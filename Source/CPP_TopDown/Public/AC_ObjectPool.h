@@ -42,6 +42,10 @@ protected:
 	//TMap<UClass*, TArray<TWeakObjectPtr<APooledActor>>> PerClassPools;
 	TMap<UClass*, TArray<APooledActor*>> PerClassPools;
 
+	// remembers next index to try per class to spread usage (round-robin)
+	TMap<UClass*, int32> PerClassNextIndex;
+
+
 	UFUNCTION()
 	void InitializePool();
 

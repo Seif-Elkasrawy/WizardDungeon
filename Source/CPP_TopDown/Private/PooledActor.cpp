@@ -70,6 +70,11 @@ void APooledActor::SetInUse(bool bActive)
         SetActorTickEnabled(false);
         GetWorldTimerManager().ClearTimer(LifeSpanTimerHandle);
 
+        if (GetWorld())
+        {
+            LastReturnedTime = GetWorld()->GetTimeSeconds();
+        }
+
         // Only notify pool if BeginPlay ran (prevents race during construction/deferred spawn)
         if (OwningPool && bHasBegunPlay)
         {

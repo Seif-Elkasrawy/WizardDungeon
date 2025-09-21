@@ -13,6 +13,7 @@ EBTNodeResult::Type UBTTask_EnemyBasicShoot::ExecuteTask(UBehaviorTreeComponent&
 	ACharacter* Player = UGameplayStatics::GetPlayerCharacter(Controller, 0);
 
 	if (Enemy) {
+		Enemy->TryFireSpell();
 		FVector MuzzleLoc = Enemy->SpawnLocation->GetComponentLocation();
 
 		// 2) Target location: adjust for player eye height
